@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inventory System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main class="page-shell">
+    <section class="hero-card">
+      <p class="eyebrow">Inventory Mobile Entry</p>
+      <h1>盤點建檔</h1>
+      <p class="hero-copy">
+        第一版先支援手機手動建檔，完成料號、批次、數量與儲位輸入後，直接寫入 Supabase。
+      </p>
+    </section>
+
+    <section class="form-card">
+      <div class="card-header">
+        <div>
+          <p class="section-kicker">Phase 2</p>
+          <h2>手動建檔</h2>
+        </div>
+        <span class="status-chip" id="connection-status">尚未設定 Supabase</span>
+      </div>
+
+      <form id="inventory-form" class="inventory-form">
+        <label class="field">
+          <span>建立人員</span>
+          <input id="createdBy" name="createdBy" type="text" maxlength="50" placeholder="例如：王小明">
+        </label>
+
+        <label class="field">
+          <span>料號</span>
+          <input id="itemCode" name="itemCode" type="text" maxlength="100" placeholder="請輸入料號" required>
+        </label>
+
+        <label class="field">
+          <span>批次</span>
+          <input id="batchNo" name="batchNo" type="text" maxlength="100" placeholder="請輸入批次" required>
+        </label>
+
+        <label class="field">
+          <span>數量</span>
+          <input id="quantity" name="quantity" type="number" min="1" step="1" placeholder="請輸入數量" required>
+        </label>
+
+        <div class="location-panel">
+          <div class="panel-title-row">
+            <div>
+              <p class="section-kicker">Location</p>
+              <h3>儲位設定</h3>
+            </div>
+            <div class="location-code-box">
+              <span>儲位碼</span>
+              <strong id="locationCode">-</strong>
+            </div>
+          </div>
+
+          <div class="select-grid">
+            <label class="field">
+              <span>溫層</span>
+              <select id="tempZone" name="tempZone" required>
+                <option value="">請選擇</option>
+                <option value="F">F 冷凍</option>
+                <option value="G">G 冷藏</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>道別</span>
+              <select id="aisle" name="aisle" required></select>
+            </label>
+
+            <label class="field">
+              <span>樓層</span>
+              <select id="level" name="level" required></select>
+            </label>
+
+            <label class="field">
+              <span>版位</span>
+              <select id="position" name="position" required></select>
+            </label>
+          </div>
+        </div>
+
+        <label class="field">
+          <span>輸入方式</span>
+          <select id="inputMethod" name="inputMethod">
+            <option value="manual">manual</option>
+            <option value="scan">scan</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>原始 QR 內容</span>
+          <textarea id="rawQr" name="rawQr" rows="3" placeholder="手動建檔可留空，之後掃描功能會自動帶入"></textarea>
+        </label>
+
+        <button id="submitButton" class="submit-button" type="submit">送出建檔</button>
+      </form>
+
+      <p id="form-message" class="form-message" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./app.js" type="module"></script>
+</body>
+</html>
