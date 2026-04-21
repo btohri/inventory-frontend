@@ -324,7 +324,7 @@ textarea:focus {
   border-radius: 16px;
   border: 1px solid rgba(24, 50, 41, 0.08);
   background: rgba(255, 255, 255, 0.7);
-  min-height: 72vw;
+  min-height: 90vw;
 }
 
 .scan-result {
