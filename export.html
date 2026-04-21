@@ -8,6 +8,83 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./style.css">
+  <style>
+    .filter-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .filter-grid .full-width {
+      grid-column: 1 / -1;
+    }
+    .filter-grid label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted, #888);
+      margin-bottom: 4px;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+    .filter-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .query-button {
+      flex: 1;
+      padding: 10px 0;
+      border: none;
+      border-radius: 10px;
+      background: var(--accent, #4f8ef7);
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .query-button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .query-button:not(:disabled):hover { opacity: 0.85; }
+    .result-meta {
+      font-size: 0.82rem;
+      color: var(--text-muted, #888);
+      margin-bottom: 10px;
+    }
+    .preview-wrap {
+      overflow-x: auto;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.25);
+      margin-bottom: 16px;
+    }
+    .preview-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+    .preview-table th {
+      background: rgba(0,0,0,0.08);
+      padding: 7px 10px;
+      text-align: left;
+      font-weight: 700;
+      white-space: nowrap;
+      color: var(--text-muted, #888);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .preview-table td {
+      padding: 6px 10px;
+      border-top: 1px solid rgba(255,255,255,0.12);
+      white-space: nowrap;
+    }
+    .preview-table tr:hover td { background: rgba(255,255,255,0.06); }
+    @media (max-width: 520px) {
+      .filter-grid { grid-template-columns: 1fr; }
+      .filter-grid .full-width { grid-column: 1; }
+    }
+  </style>
 </head>
 <body>
   <main class="page-shell">
@@ -19,10 +96,49 @@
         </div>
       </div>
 
-      <p class="export-copy">此頁專門提供盤點資料匯出，不影響現場人員建檔流程。</p>
+      <p class="export-copy">設定查詢條件後按「查詢」預覽結果，再按「匯出 Excel」下載。</p>
 
-      <div class="export-panel export-panel-standalone">
-        <button id="exportButton" class="submit-button" type="button">匯出 Excel</button>
+      <div class="filter-grid">
+        <div>
+          <label>開始日期</label>
+          <input type="date" id="filterDateFrom">
+        </div>
+        <div>
+          <label>結束日期</label>
+          <input type="date" id="filterDateTo">
+        </div>
+        <div>
+          <label>建立人員</label>
+          <input type="text" id="filterPerson" placeholder="全部">
+        </div>
+        <div>
+          <label>料號</label>
+          <input type="text" id="filterItemCode" placeholder="全部">
+        </div>
+      </div>
+
+      <div class="filter-actions">
+        <button id="queryButton" class="query-button" type="button">查詢</button>
+        <button id="exportButton" class="submit-button" type="button" disabled>匯出 Excel</button>
+      </div>
+
+      <p id="result-meta" class="result-meta" hidden></p>
+
+      <div id="preview-wrap" class="preview-wrap" hidden>
+        <table class="preview-table">
+          <thead>
+            <tr>
+              <th>時間</th>
+              <th>建立人員</th>
+              <th>料號</th>
+              <th>批次</th>
+              <th>數量</th>
+              <th>儲位</th>
+              <th>輸入方式</th>
+            </tr>
+          </thead>
+          <tbody id="preview-body"></tbody>
+        </table>
       </div>
 
       <p id="export-message" class="form-message" aria-live="polite"></p>

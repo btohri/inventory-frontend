@@ -195,6 +195,10 @@ async function startScanner() {
       {
         fps: 12,
         aspectRatio: 1,
+        qrbox: (w, h) => {
+          const size = Math.min(w, h) * 0.85;
+          return { width: size, height: size };
+        },
         experimentalFeatures: {
           useBarCodeDetectorIfSupported: true,
         },
