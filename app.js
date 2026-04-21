@@ -206,6 +206,12 @@ async function startScanner() {
       onScanSuccess,
       () => {}
     );
+
+    const videoEl = document.querySelector("#qr-reader video");
+    if (videoEl) {
+      videoEl.style.transform = "scale(1.6)";
+      videoEl.style.transformOrigin = "center center";
+    }
   } catch (error) {
     setScanningState(false);
     setScannerStatus(`無法啟動相機：${error.message}`, "error");
