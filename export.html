@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inventory Export</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main class="page-shell">
+    <section class="form-card export-page">
+      <div class="panel-title-row">
+        <div>
+          <p class="section-kicker">Export</p>
+          <h3>資料匯出</h3>
+        </div>
+      </div>
+
+      <p class="export-copy">此頁專門提供盤點資料匯出，不影響現場人員建檔流程。</p>
+
+      <div class="export-panel export-panel-standalone">
+        <button id="exportButton" class="submit-button" type="button">匯出 Excel</button>
+      </div>
+
+      <p id="export-message" class="form-message" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="./export.js" type="module"></script>
+</body>
+</html>

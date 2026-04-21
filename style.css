@@ -126,7 +126,7 @@ h3 {
 }
 
 .export-panel {
-  margin-top: 14px;
+  margin-top: 18px;
 }
 
 body.scan-mode .hero-card,
@@ -351,6 +351,21 @@ textarea:focus {
   margin-top: 12px;
   color: var(--accent-strong);
   font-weight: 700;
+}
+
+.export-page {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.export-copy {
+  margin-top: 12px;
+  color: var(--text-soft);
+  line-height: 1.7;
+}
+
+.export-panel-standalone {
+  max-width: 320px;
 }
 
 .empty-state {

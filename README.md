@@ -18,12 +18,15 @@
 ## 線上網址
 
 - 建檔頁：`https://btohri.github.io/inventory-frontend/`
+- 匯出頁：`https://btohri.github.io/inventory-frontend/export.html`
 
 ## 目前檔案
 
 - `index.html`：建檔主頁
+- `export.html`：資料匯出頁
 - `style.css`：共用樣式
 - `app.js`：建檔、掃碼、Supabase 寫入邏輯
+- `export.js`：Excel 匯出邏輯
 - `admin.html` / `admin.js`：目前保留在專案內，主畫面已不顯示入口
 - `personnel-store.js`：人員名單共用儲存邏輯
 
@@ -79,7 +82,9 @@
 
 ### 6. Excel 匯出
 
-主頁目前已加入 `匯出 Excel` 按鈕，可直接匯出：
+Excel 匯出已改為獨立頁面 `export.html`，避免影響現場建檔頁。
+
+匯出頁可直接匯出：
 
 - 時間
 - 建立人員
@@ -159,7 +164,6 @@ location_code = 溫層-走道位置-樓層-版位
 - 人員名單目前存在 `localStorage`
 - 不同手機之間不會自動同步人員名單
 - QR 解析目前依賴 `T2 / T3 / T4` 格式
-- 尚未加入 Excel 匯出
 - 尚未加入登入與權限管理
 
 ## 下一步建議
