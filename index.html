@@ -12,6 +12,9 @@
 <body>
   <main class="page-shell">
     <section class="hero-card">
+      <div class="hero-topbar">
+        <a class="ghost-link" href="./admin.html">人員管理</a>
+      </div>
       <p class="eyebrow">Inventory Mobile Entry</p>
       <h1>盤點建檔</h1>
       <p class="hero-copy">
@@ -23,15 +26,34 @@
       <div class="card-header">
         <div>
           <p class="section-kicker">Phase 2</p>
-          <h2>手動建檔</h2>
+          <h2>掃描與建檔</h2>
         </div>
         <span class="status-chip" id="connection-status">尚未設定 Supabase</span>
+      </div>
+
+      <div class="scanner-panel">
+        <div class="panel-title-row">
+          <div>
+            <p class="section-kicker">QR Scan</p>
+            <h3>手機掃描 QR Code</h3>
+          </div>
+          <div class="scan-actions">
+            <button id="startScanButton" class="secondary-button" type="button">開始掃描</button>
+            <button id="stopScanButton" class="ghost-button" type="button" disabled>停止掃描</button>
+          </div>
+        </div>
+        <p id="scanner-status" class="scanner-status">按下開始掃描後，允許相機權限即可使用。</p>
+        <div id="qr-reader" class="qr-reader" hidden></div>
+        <div id="scan-result" class="scan-result" hidden>
+          <span>最近一次掃描</span>
+          <strong id="scan-result-text">-</strong>
+        </div>
       </div>
 
       <form id="inventory-form" class="inventory-form">
         <label class="field">
           <span>建立人員</span>
-          <input id="createdBy" name="createdBy" type="text" maxlength="50" placeholder="例如：王小明">
+          <select id="createdBy" name="createdBy" required></select>
         </label>
 
         <label class="field">
@@ -72,7 +94,7 @@
             </label>
 
             <label class="field">
-              <span>道別</span>
+              <span>走道位置</span>
               <select id="aisle" name="aisle" required></select>
             </label>
 
@@ -109,6 +131,7 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="./app.js" type="module"></script>
 </body>
 </html>
