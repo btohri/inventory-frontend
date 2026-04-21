@@ -148,7 +148,12 @@ h3 {
 
 .status-chip.disconnected {
   background: rgba(255, 232, 228, 0.95);
-  color: #8d3322;
+  color: #c63d2f;
+}
+
+.status-chip.pending {
+  background: rgba(239, 239, 239, 0.95);
+  color: #76817c;
 }
 
 .status-dot {

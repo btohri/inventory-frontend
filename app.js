@@ -1,11 +1,6 @@
-import {
-  getCreatedByOptions,
-  LAST_CREATED_BY_KEY,
-  PERSONNEL_STORAGE_KEY,
-} from "./personnel-store.js";
-
 const SUPABASE_URL = "https://tgotcbnbjfmnapwiwgsf.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_1CC439uRVnJKsPIiZE6u7w_3VenN1Li";
+const LAST_CREATED_BY_KEY = "inventory-last-created-by";
 const LAST_LOCATION_KEY = "inventory-last-location";
 const LAST_SCAN_KEY = "inventory-last-scan";
 const DUPLICATE_SCAN_WINDOW_MS = 8000;
@@ -15,7 +10,7 @@ const submitButton = document.querySelector("#submitButton");
 const messageBox = document.querySelector("#form-message");
 const locationCodeLabel = document.querySelector("#locationCode");
 const connectionStatus = document.querySelector("#connection-status");
-const createdBySelect = document.querySelector("#createdBy");
+const createdByInput = document.querySelector("#createdBy");
 const itemCodeInput = document.querySelector("#itemCode");
 const batchNoInput = document.querySelector("#batchNo");
 const quantityInput = document.querySelector("#quantity");
@@ -46,13 +41,13 @@ const supabase = hasSupabaseConfig
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
 
-initializeCreatedBySelect();
+restoreLastCreatedBy();
 initializeSelect(aisleSelect, 20, { padStart: 2, placeholder: "請選擇走道位置" });
 initializeSelect(levelSelect, 3, { placeholder: "請選擇樓層" });
 initializeSelect(positionSelect, 3, { placeholder: "請選擇版位" });
 restoreLastLocation();
 updateLocationCode();
-updateConnectionStatus();
+void updateConnectionStatus();
 
 tempZoneSelect.addEventListener("change", handleLocationChange);
 aisleSelect.addEventListener("change", handleLocationChange);
@@ -61,40 +56,12 @@ positionSelect.addEventListener("change", handleLocationChange);
 form.addEventListener("submit", handleSubmit);
 startScanButton.addEventListener("click", startScanner);
 stopScanButton.addEventListener("click", stopScanner);
-window.addEventListener("pageshow", refreshCreatedBySelect);
-window.addEventListener("focus", refreshCreatedBySelect);
-window.addEventListener("storage", handleStorageChange);
 
-function initializeCreatedBySelect() {
-  refreshCreatedBySelect();
-}
-
-function refreshCreatedBySelect() {
-  const createdByOptions = getCreatedByOptions();
-  const currentValue = createdBySelect.value;
+function restoreLastCreatedBy() {
   const lastCreatedBy = window.localStorage.getItem(LAST_CREATED_BY_KEY);
-  createdBySelect.innerHTML = '<option value="">請選擇建立人員</option>';
 
-  for (const name of createdByOptions) {
-    const option = document.createElement("option");
-    option.value = name;
-    option.textContent = name;
-    createdBySelect.append(option);
-  }
-
-  if (currentValue && createdByOptions.includes(currentValue)) {
-    createdBySelect.value = currentValue;
-    return;
-  }
-
-  if (lastCreatedBy && createdByOptions.includes(lastCreatedBy)) {
-    createdBySelect.value = lastCreatedBy;
-  }
-}
-
-function handleStorageChange(event) {
-  if (event.key === PERSONNEL_STORAGE_KEY || event.key === LAST_CREATED_BY_KEY) {
-    refreshCreatedBySelect();
+  if (lastCreatedBy) {
+    createdByInput.value = lastCreatedBy;
   }
 }
 
@@ -179,19 +146,39 @@ function updateLastLocationNote(location) {
     `已自動帶入上次儲位：${location.tempZone}-${location.aisle}-${location.level}-${location.position}`;
 }
 
-function updateConnectionStatus() {
-  connectionStatus.className = "status-chip";
+async function updateConnectionStatus() {
+  connectionStatus.className = "status-chip pending";
+  connectionStatus.setAttribute("aria-label", "Supabase 連線檢查中");
+  connectionStatus.title = "Supabase 連線檢查中";
 
-  if (hasSupabaseConfig) {
-    connectionStatus.classList.add("connected");
-    connectionStatus.setAttribute("aria-label", "Supabase 已連線");
-    connectionStatus.title = "Supabase 已連線";
+  if (!hasSupabaseConfig) {
+    connectionStatus.className = "status-chip disconnected";
+    connectionStatus.setAttribute("aria-label", "Supabase 未連線");
+    connectionStatus.title = "Supabase 未連線";
     return;
   }
 
-  connectionStatus.classList.add("disconnected");
-  connectionStatus.setAttribute("aria-label", "Supabase 未連線");
-  connectionStatus.title = "Supabase 未連線";
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/`, {
+      method: "GET",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    connectionStatus.className = "status-chip connected";
+    connectionStatus.setAttribute("aria-label", "Supabase 已連線");
+    connectionStatus.title = "Supabase 已連線";
+  } catch {
+    connectionStatus.className = "status-chip disconnected";
+    connectionStatus.setAttribute("aria-label", "Supabase 未連線");
+    connectionStatus.title = "Supabase 未連線";
+  }
 }
 
 function setMessage(text, type = "") {
@@ -380,7 +367,7 @@ async function handleSubmit(event) {
   }
 
   if (!createdBy) {
-    setMessage("請先選擇建立人員。", "error");
+    setMessage("請先輸入建立人員。", "error");
     return;
   }
 
@@ -420,7 +407,7 @@ async function handleSubmit(event) {
   persistCurrentLocation();
   setMessage(`建檔成功，儲位 ${locationCode} 已寫入資料庫。`, "success");
   form.reset();
-  createdBySelect.value = createdBy;
+  createdByInput.value = createdBy;
   restoreLastLocation();
   inputMethodInput.value = "manual";
   rawQrInput.value = "";
