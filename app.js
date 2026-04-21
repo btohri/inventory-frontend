@@ -15,7 +15,6 @@ const submitButton = document.querySelector("#submitButton");
 const messageBox = document.querySelector("#form-message");
 const locationCodeLabel = document.querySelector("#locationCode");
 const connectionStatus = document.querySelector("#connection-status");
-const connectionStatusText = document.querySelector("#connection-status-text");
 const createdBySelect = document.querySelector("#createdBy");
 const itemCodeInput = document.querySelector("#itemCode");
 const batchNoInput = document.querySelector("#batchNo");
@@ -185,12 +184,14 @@ function updateConnectionStatus() {
 
   if (hasSupabaseConfig) {
     connectionStatus.classList.add("connected");
-    connectionStatusText.textContent = "Supabase 已連線";
+    connectionStatus.setAttribute("aria-label", "Supabase 已連線");
+    connectionStatus.title = "Supabase 已連線";
     return;
   }
 
   connectionStatus.classList.add("disconnected");
-  connectionStatusText.textContent = "Supabase 未連線";
+  connectionStatus.setAttribute("aria-label", "Supabase 未連線");
+  connectionStatus.title = "Supabase 未連線";
 }
 
 function setMessage(text, type = "") {

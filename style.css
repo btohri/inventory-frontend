@@ -64,12 +64,6 @@ body::before {
   overflow: hidden;
 }
 
-.hero-topbar {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 8px;
-}
-
 .hero-card::after {
   content: "";
   position: absolute;
@@ -141,9 +135,10 @@ h3 {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px;
-  font-size: 0.9rem;
-  font-weight: 700;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
 }
 
 .status-chip.connected {
@@ -162,20 +157,6 @@ h3 {
   border-radius: 999px;
   background: currentColor;
   box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.35);
-}
-
-.ghost-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 42px;
-  padding: 10px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(24, 50, 41, 0.12);
-  background: rgba(255, 255, 255, 0.7);
-  color: var(--accent-strong);
-  font-weight: 700;
-  text-decoration: none;
 }
 
 .inventory-form {

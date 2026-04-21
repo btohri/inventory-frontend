@@ -12,10 +12,7 @@
 <body>
   <main class="page-shell">
     <section class="hero-card">
-      <div class="hero-topbar">
-        <a class="ghost-link" href="./admin.html">人員管理</a>
-      </div>
-      <h1>盤點建檔</h1>
+      <h1>掃碼盤點</h1>
     </section>
 
     <section class="form-card">
@@ -25,7 +22,6 @@
         </div>
         <span class="status-chip" id="connection-status">
           <span class="status-dot"></span>
-          <span id="connection-status-text">Supabase 未連線</span>
         </span>
       </div>
 
@@ -113,11 +109,7 @@
             </label>
           </div>
         </div>
-
-        <label class="field scan-hidden-field">
-          <span>原始 QR 內容</span>
-          <textarea id="rawQr" name="rawQr" rows="3" placeholder="手動建檔可留空，之後掃描功能會自動帶入"></textarea>
-        </label>
+        <textarea id="rawQr" name="rawQr" rows="3" hidden></textarea>
 
         <button id="submitButton" class="submit-button" type="submit">送出建檔</button>
       </form>
