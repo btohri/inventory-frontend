@@ -66,8 +66,7 @@ body::before {
 
 .hero-image {
   display: block;
-  width: 100%;
-  max-width: 520px;
+  width: min(100%, 360px);
   margin: 0 auto;
   height: auto;
   object-fit: contain;
@@ -127,7 +126,6 @@ h3 {
   line-height: 1.7;
 }
 
-.card-header,
 .panel-title-row {
   display: flex;
   align-items: flex-start;
@@ -135,44 +133,10 @@ h3 {
   gap: 12px;
 }
 
-.status-chip,
 .location-code-box {
   border-radius: 18px;
   background: var(--accent-soft);
   color: var(--accent-strong);
-}
-
-.status-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-}
-
-.status-chip.connected {
-  background: rgba(216, 239, 228, 0.95);
-  color: #14503c;
-}
-
-.status-chip.disconnected {
-  background: rgba(255, 232, 228, 0.95);
-  color: #c63d2f;
-}
-
-.status-chip.pending {
-  background: rgba(239, 239, 239, 0.95);
-  color: #76817c;
-}
-
-.status-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: currentColor;
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.35);
 }
 
 .inventory-form {
@@ -454,7 +418,6 @@ textarea:focus {
     border-radius: 24px;
   }
 
-  .card-header,
   .panel-title-row {
     flex-direction: column;
   }

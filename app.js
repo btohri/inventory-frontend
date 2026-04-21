@@ -9,7 +9,6 @@ const form = document.querySelector("#inventory-form");
 const submitButton = document.querySelector("#submitButton");
 const messageBox = document.querySelector("#form-message");
 const locationCodeLabel = document.querySelector("#locationCode");
-const connectionStatus = document.querySelector("#connection-status");
 const createdByInput = document.querySelector("#createdBy");
 const itemCodeInput = document.querySelector("#itemCode");
 const batchNoInput = document.querySelector("#batchNo");
@@ -47,7 +46,6 @@ initializeSelect(levelSelect, 3, { placeholder: "請選擇樓層" });
 initializeSelect(positionSelect, 3, { placeholder: "請選擇版位" });
 restoreLastLocation();
 updateLocationCode();
-void updateConnectionStatus();
 
 tempZoneSelect.addEventListener("change", handleLocationChange);
 aisleSelect.addEventListener("change", handleLocationChange);
@@ -146,41 +144,6 @@ function updateLastLocationNote(location) {
     `已自動帶入上次儲位：${location.tempZone}-${location.aisle}-${location.level}-${location.position}`;
 }
 
-async function updateConnectionStatus() {
-  connectionStatus.className = "status-chip pending";
-  connectionStatus.setAttribute("aria-label", "Supabase 連線檢查中");
-  connectionStatus.title = "Supabase 連線檢查中";
-
-  if (!hasSupabaseConfig) {
-    connectionStatus.className = "status-chip disconnected";
-    connectionStatus.setAttribute("aria-label", "Supabase 未連線");
-    connectionStatus.title = "Supabase 未連線";
-    return;
-  }
-
-  try {
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/`, {
-      method: "GET",
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    connectionStatus.className = "status-chip connected";
-    connectionStatus.setAttribute("aria-label", "Supabase 已連線");
-    connectionStatus.title = "Supabase 已連線";
-  } catch {
-    connectionStatus.className = "status-chip disconnected";
-    connectionStatus.setAttribute("aria-label", "Supabase 未連線");
-    connectionStatus.title = "Supabase 未連線";
-  }
-}
-
 function setMessage(text, type = "") {
   messageBox.textContent = text;
   messageBox.className = "form-message";
@@ -230,8 +193,11 @@ async function startScanner() {
     await html5QrCode.start(
       { facingMode: "environment" },
       {
-        fps: 10,
-        qrbox: { width: 220, height: 220 },
+        fps: 12,
+        aspectRatio: 1,
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true,
+        },
       },
       onScanSuccess,
       () => {}
