@@ -191,12 +191,12 @@ async function startScanner() {
     setScannerStatus("相機啟動中，請將 QR Code 對準畫面。");
 
     await html5QrCode.start(
-      { facingMode: "environment" },
+      { facingMode: "environment", advanced: [{ zoom: 1 }] },
       {
-        fps: 12,
+        fps: 30,
         aspectRatio: 1,
         qrbox: (w, h) => {
-          const size = Math.min(w, h) * 0.85;
+          const size = Math.min(w, h) * 0.95;
           return { width: size, height: size };
         },
         experimentalFeatures: {
@@ -209,7 +209,7 @@ async function startScanner() {
 
     const videoEl = document.querySelector("#qr-reader video");
     if (videoEl) {
-      videoEl.style.transform = "scale(1.6)";
+      videoEl.style.transform = "scale(1.8)";
       videoEl.style.transformOrigin = "center center";
     }
   } catch (error) {
