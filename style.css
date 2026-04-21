@@ -125,6 +125,10 @@ h3 {
   border: 1px solid rgba(24, 50, 41, 0.08);
 }
 
+.export-panel {
+  margin-top: 14px;
+}
+
 body.scan-mode .hero-card,
 body.scan-mode .scan-hidden-panel,
 body.scan-mode .scan-hidden-field,

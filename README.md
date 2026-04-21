@@ -10,6 +10,7 @@
 - 建立人員可手動填寫，並保留前一次輸入
 - 自動記住前一次儲位設定
 - 自動判斷 `input_method`，不需手動選擇
+- 前端匯出 Excel
 - 下拉選擇溫層、走道位置、樓層、版位
 - 自動產生 `location_code`
 - 寫入 Supabase `inventory_records`
@@ -75,6 +76,23 @@
 
 - 有 `raw_qr` 時自動寫入 `scan`
 - 無 `raw_qr` 時自動寫入 `manual`
+
+### 6. Excel 匯出
+
+主頁目前已加入 `匯出 Excel` 按鈕，可直接匯出：
+
+- 時間
+- 建立人員
+- 料號
+- 批次
+- 數量
+- 儲位
+- 輸入方式
+
+注意：
+
+- 匯出功能需要 Supabase 允許 `SELECT`
+- 如果目前 RLS 只有 `INSERT`，按鈕會顯示權限不足錯誤
 
 ## 儲位邏輯
 
@@ -147,6 +165,5 @@ location_code = 溫層-走道位置-樓層-版位
 ## 下一步建議
 
 - 將人員管理升級為 Supabase 共用名單
-- 加入 Excel 匯出
 - 加入查詢頁
 - 加入登入與更嚴格的 RLS policy
