@@ -64,6 +64,17 @@ body::before {
   overflow: hidden;
 }
 
+.hero-image {
+  display: block;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  height: auto;
+  object-fit: contain;
+  position: relative;
+  z-index: 1;
+}
+
 .hero-card::after {
   content: "";
   position: absolute;
