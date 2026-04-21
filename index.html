@@ -15,20 +15,18 @@
       <div class="hero-topbar">
         <a class="ghost-link" href="./admin.html">人員管理</a>
       </div>
-      <p class="eyebrow">Inventory Mobile Entry</p>
       <h1>盤點建檔</h1>
-      <p class="hero-copy">
-        第一版先支援手機手動建檔，完成料號、批次、數量與儲位輸入後，直接寫入 Supabase。
-      </p>
     </section>
 
     <section class="form-card">
       <div class="card-header">
         <div>
-          <p class="section-kicker">Phase 2</p>
           <h2>掃描與建檔</h2>
         </div>
-        <span class="status-chip" id="connection-status">尚未設定 Supabase</span>
+        <span class="status-chip" id="connection-status">
+          <span class="status-dot"></span>
+          <span id="connection-status-text">Supabase 未連線</span>
+        </span>
       </div>
 
       <div class="scanner-panel">
@@ -48,33 +46,37 @@
           <span>最近一次掃描</span>
           <strong id="scan-result-text">-</strong>
         </div>
+        <div id="scan-duplicate-warning" class="scan-duplicate-warning" hidden>
+          偵測到連續掃描同一張條碼，這次未自動帶入，請確認是否重複掃描。
+        </div>
       </div>
 
       <form id="inventory-form" class="inventory-form">
-        <label class="field">
+        <label class="field created-by-field">
           <span>建立人員</span>
           <select id="createdBy" name="createdBy" required></select>
         </label>
 
-        <label class="field">
+        <label class="field scan-hidden-field">
           <span>料號</span>
           <input id="itemCode" name="itemCode" type="text" maxlength="100" placeholder="請輸入料號" required>
         </label>
 
-        <label class="field">
+        <label class="field scan-hidden-field">
           <span>批次</span>
           <input id="batchNo" name="batchNo" type="text" maxlength="100" placeholder="請輸入批次" required>
         </label>
 
-        <label class="field">
+        <label class="field scan-hidden-field">
           <span>數量</span>
           <input id="quantity" name="quantity" type="number" min="1" step="1" placeholder="請輸入數量" required>
         </label>
 
-        <div class="location-panel">
+        <input id="inputMethod" name="inputMethod" type="hidden" value="manual">
+
+        <div class="location-panel scan-hidden-panel">
           <div class="panel-title-row">
             <div>
-              <p class="section-kicker">Location</p>
               <h3>儲位設定</h3>
             </div>
             <div class="location-code-box">
@@ -82,6 +84,8 @@
               <strong id="locationCode">-</strong>
             </div>
           </div>
+
+          <p id="last-location-note" class="last-location-note" hidden></p>
 
           <div class="select-grid">
             <label class="field">
@@ -110,15 +114,7 @@
           </div>
         </div>
 
-        <label class="field">
-          <span>輸入方式</span>
-          <select id="inputMethod" name="inputMethod">
-            <option value="manual">manual</option>
-            <option value="scan">scan</option>
-          </select>
-        </label>
-
-        <label class="field">
+        <label class="field scan-hidden-field">
           <span>原始 QR 內容</span>
           <textarea id="rawQr" name="rawQr" rows="3" placeholder="手動建檔可留空，之後掃描功能會自動帶入"></textarea>
         </label>

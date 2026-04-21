@@ -12,6 +12,7 @@ const emptyState = document.querySelector("#empty-state");
 
 renderPersonList();
 adminForm.addEventListener("submit", handleSubmit);
+window.addEventListener("storage", renderPersonList);
 
 function setMessage(text, type = "") {
   messageBox.textContent = text;
@@ -47,6 +48,10 @@ function renderPersonList() {
 
     row.append(label, deleteButton);
     personList.append(row);
+  }
+
+  if (people.length > 0) {
+    setMessage(`目前共 ${people.length} 位可選人員。`, "success");
   }
 }
 

@@ -1,18 +1,26 @@
-import { getCreatedByOptions, LAST_CREATED_BY_KEY } from "./personnel-store.js";
+import {
+  getCreatedByOptions,
+  LAST_CREATED_BY_KEY,
+  PERSONNEL_STORAGE_KEY,
+} from "./personnel-store.js";
 
 const SUPABASE_URL = "https://tgotcbnbjfmnapwiwgsf.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_1CC439uRVnJKsPIiZE6u7w_3VenN1Li";
+const LAST_LOCATION_KEY = "inventory-last-location";
+const LAST_SCAN_KEY = "inventory-last-scan";
+const DUPLICATE_SCAN_WINDOW_MS = 8000;
 
 const form = document.querySelector("#inventory-form");
 const submitButton = document.querySelector("#submitButton");
 const messageBox = document.querySelector("#form-message");
 const locationCodeLabel = document.querySelector("#locationCode");
 const connectionStatus = document.querySelector("#connection-status");
+const connectionStatusText = document.querySelector("#connection-status-text");
 const createdBySelect = document.querySelector("#createdBy");
 const itemCodeInput = document.querySelector("#itemCode");
 const batchNoInput = document.querySelector("#batchNo");
 const quantityInput = document.querySelector("#quantity");
-const inputMethodSelect = document.querySelector("#inputMethod");
+const inputMethodInput = document.querySelector("#inputMethod");
 const rawQrInput = document.querySelector("#rawQr");
 const startScanButton = document.querySelector("#startScanButton");
 const stopScanButton = document.querySelector("#stopScanButton");
@@ -20,6 +28,8 @@ const scannerStatus = document.querySelector("#scanner-status");
 const qrReader = document.querySelector("#qr-reader");
 const scanResult = document.querySelector("#scan-result");
 const scanResultText = document.querySelector("#scan-result-text");
+const scanDuplicateWarning = document.querySelector("#scan-duplicate-warning");
+const lastLocationNote = document.querySelector("#last-location-note");
 
 const tempZoneSelect = document.querySelector("#tempZone");
 const aisleSelect = document.querySelector("#aisle");
@@ -41,20 +51,30 @@ initializeCreatedBySelect();
 initializeSelect(aisleSelect, 20, { padStart: 2, placeholder: "請選擇走道位置" });
 initializeSelect(levelSelect, 3, { placeholder: "請選擇樓層" });
 initializeSelect(positionSelect, 3, { placeholder: "請選擇版位" });
+restoreLastLocation();
 updateLocationCode();
 updateConnectionStatus();
 
-tempZoneSelect.addEventListener("change", updateLocationCode);
-aisleSelect.addEventListener("change", updateLocationCode);
-levelSelect.addEventListener("change", updateLocationCode);
-positionSelect.addEventListener("change", updateLocationCode);
+tempZoneSelect.addEventListener("change", handleLocationChange);
+aisleSelect.addEventListener("change", handleLocationChange);
+levelSelect.addEventListener("change", handleLocationChange);
+positionSelect.addEventListener("change", handleLocationChange);
 form.addEventListener("submit", handleSubmit);
 startScanButton.addEventListener("click", startScanner);
 stopScanButton.addEventListener("click", stopScanner);
+window.addEventListener("pageshow", refreshCreatedBySelect);
+window.addEventListener("focus", refreshCreatedBySelect);
+window.addEventListener("storage", handleStorageChange);
 
 function initializeCreatedBySelect() {
-  createdBySelect.innerHTML = '<option value="">請選擇建立人員</option>';
+  refreshCreatedBySelect();
+}
+
+function refreshCreatedBySelect() {
   const createdByOptions = getCreatedByOptions();
+  const currentValue = createdBySelect.value;
+  const lastCreatedBy = window.localStorage.getItem(LAST_CREATED_BY_KEY);
+  createdBySelect.innerHTML = '<option value="">請選擇建立人員</option>';
 
   for (const name of createdByOptions) {
     const option = document.createElement("option");
@@ -63,10 +83,19 @@ function initializeCreatedBySelect() {
     createdBySelect.append(option);
   }
 
-  const lastCreatedBy = window.localStorage.getItem(LAST_CREATED_BY_KEY);
+  if (currentValue && createdByOptions.includes(currentValue)) {
+    createdBySelect.value = currentValue;
+    return;
+  }
 
   if (lastCreatedBy && createdByOptions.includes(lastCreatedBy)) {
     createdBySelect.value = lastCreatedBy;
+  }
+}
+
+function handleStorageChange(event) {
+  if (event.key === PERSONNEL_STORAGE_KEY || event.key === LAST_CREATED_BY_KEY) {
+    refreshCreatedBySelect();
   }
 }
 
@@ -84,6 +113,11 @@ function initializeSelect(element, max, options = {}) {
   }
 }
 
+function handleLocationChange() {
+  updateLocationCode();
+  persistCurrentLocation();
+}
+
 function updateLocationCode() {
   const tempZone = tempZoneSelect.value;
   const aisle = aisleSelect.value;
@@ -98,13 +132,65 @@ function updateLocationCode() {
   locationCodeLabel.textContent = locationCode;
 }
 
-function updateConnectionStatus() {
-  if (hasSupabaseConfig) {
-    connectionStatus.textContent = "Supabase 已設定";
+function persistCurrentLocation() {
+  const location = {
+    tempZone: tempZoneSelect.value,
+    aisle: aisleSelect.value,
+    level: levelSelect.value,
+    position: positionSelect.value,
+  };
+
+  if (!location.tempZone || !location.aisle || !location.level || !location.position) {
     return;
   }
 
-  connectionStatus.textContent = "請先填入 Supabase 設定";
+  window.localStorage.setItem(LAST_LOCATION_KEY, JSON.stringify(location));
+  updateLastLocationNote(location);
+}
+
+function restoreLastLocation() {
+  try {
+    const raw = window.localStorage.getItem(LAST_LOCATION_KEY);
+
+    if (!raw) {
+      return;
+    }
+
+    const location = JSON.parse(raw);
+
+    tempZoneSelect.value = location.tempZone || "";
+    aisleSelect.value = location.aisle || "";
+    levelSelect.value = location.level || "";
+    positionSelect.value = location.position || "";
+    updateLastLocationNote(location);
+  } catch {
+    // Ignore invalid saved location data.
+  }
+}
+
+function updateLastLocationNote(location) {
+  if (!location?.tempZone || !location?.aisle || !location?.level || !location?.position) {
+    lastLocationNote.hidden = true;
+    lastLocationNote.textContent = "";
+    return;
+  }
+
+  lastLocationNote.hidden = false;
+  lastLocationNote.textContent =
+    `已自動帶入上次儲位：${location.tempZone}-${location.aisle}-${location.level}-${location.position}`;
+}
+
+function updateConnectionStatus() {
+  connectionStatus.className = "status-chip";
+
+  if (hasSupabaseConfig) {
+    connectionStatus.classList.add("connected");
+    connectionStatusText.textContent = "Supabase 已連線";
+    return;
+  }
+
+  connectionStatus.classList.add("disconnected");
+  connectionStatusText.textContent = "Supabase 未連線";
 }
 
 function setMessage(text, type = "") {
@@ -130,12 +216,15 @@ function setScanningState(active) {
   qrReader.hidden = !active;
   startScanButton.disabled = active;
   stopScanButton.disabled = !active;
+  document.body.classList.toggle("scan-mode", active);
 }
 
 async function startScanner() {
   if (isScannerRunning) {
     return;
   }
+
+  scanDuplicateWarning.hidden = true;
 
   if (!window.Html5Qrcode) {
     setScannerStatus("掃描元件尚未載入完成，請稍後再試。", "error");
@@ -185,10 +274,20 @@ async function stopScanner() {
 
 async function onScanSuccess(decodedText) {
   await stopScanner();
+
+  if (isDuplicateScan(decodedText)) {
+    scanDuplicateWarning.hidden = false;
+    setScannerStatus("已擋下連續重複掃描，請確認是否同一張條碼。", "error");
+    setMessage("偵測到短時間內重複掃描同一張條碼。", "error");
+    return;
+  }
+
+  rememberScan(decodedText);
+  inputMethodInput.value = "scan";
   rawQrInput.value = decodedText;
-  inputMethodSelect.value = "scan";
   scanResult.hidden = false;
   scanResultText.textContent = decodedText;
+  scanDuplicateWarning.hidden = true;
 
   const parsed = parseQrPayload(decodedText);
 
@@ -231,6 +330,30 @@ function extractQrField(rawText, tag) {
   return "";
 }
 
+function rememberScan(rawText) {
+  const record = { rawText, timestamp: Date.now() };
+  window.localStorage.setItem(LAST_SCAN_KEY, JSON.stringify(record));
+}
+
+function isDuplicateScan(rawText) {
+  try {
+    const raw = window.localStorage.getItem(LAST_SCAN_KEY);
+
+    if (!raw) {
+      return false;
+    }
+
+    const lastScan = JSON.parse(raw);
+
+    return (
+      lastScan.rawText === rawText &&
+      Date.now() - Number(lastScan.timestamp) < DUPLICATE_SCAN_WINDOW_MS
+    );
+  } catch {
+    return false;
+  }
+}
+
 async function handleSubmit(event) {
   event.preventDefault();
 
@@ -248,7 +371,6 @@ async function handleSubmit(event) {
   const level = formData.get("level")?.toString();
   const position = formData.get("position")?.toString();
   const createdBy = formData.get("createdBy")?.toString().trim();
-  const inputMethod = formData.get("inputMethod")?.toString() || "manual";
   const rawQr = formData.get("rawQr")?.toString().trim() || null;
 
   if (!itemCode || !batchNo || !Number.isInteger(quantity) || quantity <= 0) {
@@ -267,7 +389,6 @@ async function handleSubmit(event) {
   }
 
   const locationCode = `${tempZone}-${aisle}-${level}-${position}`;
-
   const payload = {
     item_code: itemCode,
     batch_no: batchNo,
@@ -277,7 +398,7 @@ async function handleSubmit(event) {
     level: Number(level),
     position: Number(position),
     location_code: locationCode,
-    input_method: inputMethod,
+    input_method: rawQr ? "scan" : "manual",
     created_by: createdBy,
     raw_qr: rawQr,
   };
@@ -295,11 +416,15 @@ async function handleSubmit(event) {
   }
 
   window.localStorage.setItem(LAST_CREATED_BY_KEY, createdBy);
+  persistCurrentLocation();
   setMessage(`建檔成功，儲位 ${locationCode} 已寫入資料庫。`, "success");
   form.reset();
   createdBySelect.value = createdBy;
-  inputMethodSelect.value = "manual";
+  restoreLastLocation();
+  inputMethodInput.value = "manual";
+  rawQrInput.value = "";
   scanResult.hidden = true;
   scanResultText.textContent = "-";
+  scanDuplicateWarning.hidden = true;
   updateLocationCode();
 }
