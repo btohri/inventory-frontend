@@ -155,7 +155,7 @@ function buildEditRow(row) {
           數量
           <input name="quantity" type="number" min="1" step="1" value="${escAttr(row.quantity ?? "")}" required>
         </label>
-        <label class="full-width">
+        <label class="location-field">
           儲位
           <input name="location_code" type="text" maxlength="50" value="${escAttr(row.location_code ?? "")}" required>
         </label>

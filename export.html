@@ -118,11 +118,12 @@
     }
     .edit-form {
       display: grid;
-      grid-template-columns: repeat(3, minmax(220px, 320px));
+      grid-template-columns: repeat(5, minmax(140px, 220px));
       gap: 14px 16px;
-      width: fit-content;
+      width: 100%;
       max-width: 100%;
       padding: 12px 0 6px;
+      align-items: end;
     }
     .edit-form label {
       display: grid;
@@ -135,6 +136,9 @@
     }
     .edit-form .full-width {
       grid-column: 1 / -1;
+    }
+    .edit-form .location-field {
+      min-width: 0;
     }
     .edit-form input {
       width: 100%;
