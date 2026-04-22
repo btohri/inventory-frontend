@@ -193,6 +193,7 @@ function setScanSource(source) {
   scannerStatus.hidden = !isCamera;
   startScanButton.hidden = !isCamera;
   stopScanButton.hidden = !isCamera;
+  startScanButton.disabled = !isCamera || isScannerRunning;
   stopScanButton.disabled = !isCamera || !isScannerRunning;
 
   if (isCamera) {
