@@ -20,8 +20,8 @@ const rawQrInput = document.querySelector("#rawQr");
 const cameraModeButton = document.querySelector("#cameraModeButton");
 const hardwareModeButton = document.querySelector("#hardwareModeButton");
 const cameraScanPanel = document.querySelector("#camera-scan-panel");
-const hardwareScanPanel = document.querySelector("#hardware-scan-panel");
 const hardwareScanInput = document.querySelector("#hardwareScanInput");
+const hardwareScanPanel = document.querySelector("#hardware-scan-panel");
 
 const startScanButton = document.querySelector("#startScanButton");
 const stopScanButton = document.querySelector("#stopScanButton");
@@ -186,8 +186,12 @@ function setScanSource(source) {
   hardwareModeButton.classList.toggle("active", !isCamera);
   hardwareModeButton.setAttribute("aria-pressed", String(!isCamera));
 
-  cameraScanPanel.hidden = !isCamera;
+  cameraScanPanel.hidden = false;
   hardwareScanPanel.hidden = isCamera;
+  scannerStatus.hidden = !isCamera;
+  startScanButton.hidden = !isCamera;
+  stopScanButton.hidden = !isCamera;
+  stopScanButton.disabled = !isCamera || !isScannerRunning;
 
   if (isCamera) {
     setScannerStatus("按下開始掃描後，允許相機權限即可使用。");
@@ -202,8 +206,8 @@ function setScanSource(source) {
 function setScanningState(active) {
   isScannerRunning = active;
   qrReader.hidden = !active;
-  startScanButton.disabled = active;
-  stopScanButton.disabled = !active;
+  startScanButton.disabled = currentScanSource !== "camera" || active;
+  stopScanButton.disabled = currentScanSource !== "camera" || !active;
   document.body.classList.toggle("camera-scan-active", active);
 }
 
