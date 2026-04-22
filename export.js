@@ -17,9 +17,12 @@ const supabase = hasSupabaseConfig
   : null;
 
 let queryResults = [];
+let editingRecordId = null;
 
 queryButton.addEventListener("click", runQuery);
 exportButton.addEventListener("click", exportExcel);
+previewBody.addEventListener("click", handlePreviewClick);
+previewBody.addEventListener("submit", handleEditSubmit);
 
 function setMessage(text, type = "") {
   messageBox.textContent = text;
@@ -52,7 +55,7 @@ async function runQuery() {
 
   let query = supabase
     .from("inventory_records")
-    .select("created_at, created_by, item_code, batch_no, quantity, location_code, input_method")
+    .select("id, created_at, created_by, item_code, batch_no, quantity, temp_zone, aisle, level, position, location_code, input_method")
     .order("created_at", { ascending: false });
 
   if (dateFrom) {
@@ -105,6 +108,7 @@ function renderPreview(rows) {
   const fragment = document.createDocumentFragment();
   for (const row of rows) {
     const tr = document.createElement("tr");
+    tr.dataset.recordId = row.id ?? "";
     tr.innerHTML = `
       <td>${row.created_at ? formatDateTime(row.created_at) : ""}</td>
       <td>${esc(row.created_by)}</td>
@@ -113,17 +117,168 @@ function renderPreview(rows) {
       <td>${row.quantity ?? ""}</td>
       <td>${esc(row.location_code)}</td>
       <td>${esc(row.input_method)}</td>
+      <td class="actions-cell">
+        <button class="inline-action" type="button" data-action="edit" data-id="${escAttr(row.id ?? "")}" ${row.id == null ? "disabled" : ""}>
+          ${row.id == null ? "缺少 id" : "編輯"}
+        </button>
+      </td>
     `;
     fragment.appendChild(tr);
+
+    if (editingRecordId != null && String(row.id) === String(editingRecordId)) {
+      fragment.appendChild(buildEditRow(row));
+    }
   }
   previewBody.appendChild(fragment);
   previewWrap.hidden = false;
+}
+
+function buildEditRow(row) {
+  const tr = document.createElement("tr");
+  tr.className = "edit-row";
+  tr.innerHTML = `
+    <td colspan="8">
+      <form class="edit-form" data-id="${escAttr(row.id ?? "")}">
+        <label>
+          建立人員
+          <input name="created_by" type="text" maxlength="50" value="${escAttr(row.created_by ?? "")}" required>
+        </label>
+        <label>
+          料號
+          <input name="item_code" type="text" maxlength="100" value="${escAttr(row.item_code ?? "")}" required>
+        </label>
+        <label>
+          批次
+          <input name="batch_no" type="text" maxlength="100" value="${escAttr(row.batch_no ?? "")}" required>
+        </label>
+        <label>
+          數量
+          <input name="quantity" type="number" min="1" step="1" value="${escAttr(row.quantity ?? "")}" required>
+        </label>
+        <label class="full-width">
+          儲位
+          <input name="location_code" type="text" maxlength="50" value="${escAttr(row.location_code ?? "")}" required>
+        </label>
+        <div class="edit-actions full-width">
+          <button class="ghost-button" type="button" data-action="cancel-edit">取消</button>
+          <button class="submit-button" type="submit">儲存修改</button>
+        </div>
+      </form>
+    </td>
+  `;
+  return tr;
+}
+
+function handlePreviewClick(event) {
+  const target = event.target.closest("button");
+
+  if (!target) {
+    return;
+  }
+
+  const { action, id } = target.dataset;
+
+  if (action === "edit") {
+    editingRecordId = id || null;
+    renderPreview(queryResults);
+    return;
+  }
+
+  if (action === "cancel-edit") {
+    editingRecordId = null;
+    renderPreview(queryResults);
+  }
+}
+
+async function handleEditSubmit(event) {
+  const form = event.target.closest(".edit-form");
+
+  if (!form) {
+    return;
+  }
+
+  event.preventDefault();
+
+  if (!supabase) {
+    setMessage("尚未設定 Supabase，無法更新。", "error");
+    return;
+  }
+
+  const id = form.dataset.id;
+  const formData = new FormData(form);
+  const createdBy = formData.get("created_by")?.toString().trim();
+  const itemCode = formData.get("item_code")?.toString().trim();
+  const batchNo = formData.get("batch_no")?.toString().trim();
+  const quantity = Number(formData.get("quantity"));
+  const locationCode = formData.get("location_code")?.toString().trim();
+  const locationParts = parseLocationCode(locationCode);
+
+  if (!id) {
+    setMessage("缺少資料 id，無法更新。", "error");
+    return;
+  }
+
+  if (!createdBy || !itemCode || !batchNo || !locationCode || !Number.isInteger(quantity) || quantity <= 0) {
+    setMessage("請確認建立人員、料號、批次、數量與儲位皆已正確填寫。", "error");
+    return;
+  }
+
+  if (!locationParts) {
+    setMessage("儲位格式錯誤，請使用 溫層-走道-樓層-版位，例如 F-01-1-1。", "error");
+    return;
+  }
+
+  const submit = form.querySelector('button[type="submit"]');
+  if (submit) submit.disabled = true;
+  setMessage("更新中...");
+
+  const { data, error } = await supabase
+    .from("inventory_records")
+    .update({
+      created_by: createdBy,
+      item_code: itemCode,
+      batch_no: batchNo,
+      quantity,
+      temp_zone: locationParts.tempZone,
+      aisle: locationParts.aisle,
+      level: locationParts.level,
+      position: locationParts.position,
+      location_code: locationCode,
+    })
+    .eq("id", id)
+    .select("id, created_at, created_by, item_code, batch_no, quantity, temp_zone, aisle, level, position, location_code, input_method")
+    .single();
+
+  if (submit) submit.disabled = false;
+
+  if (error) {
+    if (error.code === "42501" || error.message.toLowerCase().includes("permission")) {
+      setMessage("更新失敗：RLS 尚未開放 UPDATE 權限，請先到 Supabase 新增 policy。", "error");
+      return;
+    }
+    setMessage(`更新失敗：${error.message}`, "error");
+    return;
+  }
+
+  queryResults = queryResults.map((row) => (String(row.id) === String(id) ? data : row));
+  editingRecordId = null;
+  renderPreview(queryResults);
+  setMessage("資料已更新。", "success");
 }
 
 function esc(val) {
   if (val == null) return "";
   return String(val)
     .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function escAttr(val) {
+  if (val == null) return "";
+  return String(val)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 }
@@ -187,4 +342,19 @@ function formatFileTimestamp(date) {
   const minute = String(date.getMinutes()).padStart(2, "0");
   const second = String(date.getSeconds()).padStart(2, "0");
   return `${year}${month}${day}_${hour}${minute}${second}`;
+}
+
+function parseLocationCode(locationCode) {
+  const match = locationCode.match(/^([A-Za-z]+)-(\d+)-(\d+)-(\d+)$/);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    tempZone: match[1].toUpperCase(),
+    aisle: Number(match[2]),
+    level: Number(match[3]),
+    position: Number(match[4]),
+  };
 }

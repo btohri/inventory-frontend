@@ -80,11 +80,74 @@
       padding: 6px 10px;
       border-top: 1px solid rgba(255,255,255,0.12);
       white-space: nowrap;
+      vertical-align: top;
     }
     .preview-table tr:hover td { background: rgba(255,255,255,0.06); }
+    .preview-table td.actions-cell {
+      white-space: normal;
+      min-width: 120px;
+    }
+    .inline-action {
+      min-width: 84px;
+      min-height: 40px;
+      padding: 10px 12px;
+      border: none;
+      border-radius: 12px;
+      background: rgba(29, 122, 90, 0.16);
+      color: var(--accent-strong, #14503c);
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .inline-action:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .edit-row td {
+      background: rgba(255, 255, 255, 0.55);
+    }
+    .edit-form {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 12px;
+      min-width: min(100%, 720px);
+      padding: 10px 0 4px;
+    }
+    .edit-form label {
+      display: grid;
+      gap: 6px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-muted, #888);
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+    .edit-form .full-width {
+      grid-column: 1 / -1;
+    }
+    .edit-form input {
+      width: 100%;
+      min-height: 44px;
+      padding: 10px 12px;
+      border: 1px solid rgba(24, 50, 41, 0.12);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.92);
+      font: inherit;
+      color: var(--text-main, #183229);
+    }
+    .edit-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 4px;
+    }
     @media (max-width: 520px) {
       .filter-grid { grid-template-columns: 1fr; }
       .filter-grid .full-width { grid-column: 1; }
+      .edit-form { grid-template-columns: 1fr; }
+      .edit-form .full-width { grid-column: 1; }
+      .edit-actions { justify-content: stretch; }
+      .edit-actions button { flex: 1; }
     }
   </style>
 </head>
@@ -137,6 +200,7 @@
               <th>數量</th>
               <th>儲位</th>
               <th>輸入方式</th>
+              <th>操作</th>
             </tr>
           </thead>
           <tbody id="preview-body"></tbody>

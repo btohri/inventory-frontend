@@ -17,6 +17,7 @@
 - 寫入 Supabase `inventory_records`
 - 匯出頁查詢功能（日期範圍、建立人員、料號模糊搜尋）
 - 查詢結果預覽表格，確認後再匯出 Excel
+- 匯出頁查詢後可直接修改單筆資料
 - 相機掃描框擴大，視角更近
 - 平板掃描槍模式已加入 `T1 / T2` 格式防呆
 - 掃描模式切換後，手機相機的 `開始掃描` 按鈕可正常恢復使用
@@ -95,11 +96,12 @@
 
 Excel 匯出已改為獨立頁面 `export.html`，避免影響現場建檔頁。
 
-匯出頁支援先查詢再匯出：
+匯出頁支援先查詢、修改，再匯出：
 
 1. 設定篩選條件（開始日期、結束日期、建立人員、料號）
 2. 按「查詢」預覽符合條件的筆數與資料
-3. 確認後按「匯出 Excel」下載，匯出內容與查詢結果一致
+3. 若需要，可按每筆資料右側的「編輯」直接修改
+4. 確認後按「匯出 Excel」下載，匯出內容與查詢結果一致
 
 篩選條件說明：
 
@@ -115,6 +117,7 @@ Excel 匯出已改為獨立頁面 `export.html`，避免影響現場建檔頁。
 
 - 匯出功能需要 Supabase RLS 允許 `SELECT`
 - 請在 Supabase Dashboard 建立 policy：`FOR SELECT TO public USING (true)`
+- 若要使用查詢後修改功能，還需要 `UPDATE` 權限，以及資料表內已有可唯一識別每筆資料的 `id` 主鍵
 
 ## 儲位邏輯
 
@@ -148,6 +151,35 @@ location_code = 溫層-走道位置-樓層-版位
 
 - 移除 `allow all`
 - 改為只允許 `INSERT`
+
+如果要讓 `export.html` 可修改資料，請先確認 `inventory_records` 已經有 `id` 主鍵。
+
+- 如果你的資料表和目前專案一樣，已經有 `uuid` 型別的 `id` 主鍵，就不需要新增欄位
+- 如果沒有 `id` 主鍵，才需要先補一個可唯一識別每筆資料的主鍵欄位
+
+接著新增或確認查詢與修改權限：
+
+```sql
+create policy "inventory_records_select_public"
+on public.inventory_records
+for select
+to public
+using (true);
+
+create policy "inventory_records_update_public"
+on public.inventory_records
+for update
+to public
+using (true)
+with check (true);
+```
+
+如果已經存在舊的 `SELECT` policy，只需要補 `UPDATE` policy 即可。
+
+注意：
+
+- 目前這種做法代表能開啟頁面的人都可以修改資料
+- 若之後要正式上線，建議再補登入與更嚴格的 RLS 限制
 
 ## 本機開發
 
