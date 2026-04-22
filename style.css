@@ -125,28 +125,67 @@ h3 {
   border: 1px solid rgba(24, 50, 41, 0.08);
 }
 
+.scan-source-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.scan-source-button {
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid rgba(29, 122, 90, 0.18);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--accent-strong);
+  font: inherit;
+  font-weight: 800;
+}
+
+.scan-source-button.active {
+  border-color: transparent;
+  color: #f8fff9;
+  background: linear-gradient(135deg, #2b8f6e, #1c6d53);
+  box-shadow: 0 14px 26px rgba(20, 80, 60, 0.16);
+}
+
+.hardware-scan-panel {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(24, 50, 41, 0.08);
+}
+
+.panel-help {
+  margin-top: 10px;
+  color: var(--text-soft);
+  line-height: 1.6;
+}
+
 .export-panel {
   margin-top: 18px;
 }
 
-body.scan-mode .hero-card,
-body.scan-mode .scan-hidden-panel,
-body.scan-mode .scan-hidden-field,
-body.scan-mode .form-message {
+body.camera-scan-active .hero-card,
+body.camera-scan-active .scan-hidden-panel,
+body.camera-scan-active .scan-hidden-field,
+body.camera-scan-active .form-message {
   display: none;
 }
 
-body.scan-mode .page-shell {
+body.camera-scan-active .page-shell {
   width: min(100%, 920px);
   padding: 8px 4px 24px;
 }
 
-body.scan-mode .form-card {
+body.camera-scan-active .form-card {
   margin-top: 6px;
   padding: 14px 8px 16px;
 }
 
-body.scan-mode .scanner-panel {
+body.camera-scan-active .scanner-panel {
   background: rgba(255, 255, 255, 0.82);
   box-shadow: 0 18px 48px rgba(26, 67, 51, 0.12);
 }
@@ -415,6 +454,10 @@ textarea:focus {
 
   .scan-actions {
     flex-direction: column;
+  }
+
+  .scan-source-switch {
+    grid-template-columns: 1fr;
   }
 
   .person-row {

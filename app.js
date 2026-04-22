@@ -4,6 +4,7 @@ const LAST_CREATED_BY_KEY = "inventory-last-created-by";
 const LAST_LOCATION_KEY = "inventory-last-location";
 const LAST_SCAN_KEY = "inventory-last-scan";
 const DUPLICATE_SCAN_WINDOW_MS = 8000;
+const HARDWARE_SCAN_DEBOUNCE_MS = 180;
 
 const form = document.querySelector("#inventory-form");
 const submitButton = document.querySelector("#submitButton");
@@ -15,6 +16,13 @@ const batchNoInput = document.querySelector("#batchNo");
 const quantityInput = document.querySelector("#quantity");
 const inputMethodInput = document.querySelector("#inputMethod");
 const rawQrInput = document.querySelector("#rawQr");
+
+const cameraModeButton = document.querySelector("#cameraModeButton");
+const hardwareModeButton = document.querySelector("#hardwareModeButton");
+const cameraScanPanel = document.querySelector("#camera-scan-panel");
+const hardwareScanPanel = document.querySelector("#hardware-scan-panel");
+const hardwareScanInput = document.querySelector("#hardwareScanInput");
+
 const startScanButton = document.querySelector("#startScanButton");
 const stopScanButton = document.querySelector("#stopScanButton");
 const scannerStatus = document.querySelector("#scanner-status");
@@ -31,6 +39,8 @@ const positionSelect = document.querySelector("#position");
 
 let html5QrCode = null;
 let isScannerRunning = false;
+let currentScanSource = "camera";
+let hardwareScanTimer = null;
 
 const hasSupabaseConfig =
   SUPABASE_URL !== "YOUR_SUPABASE_URL" &&
@@ -46,6 +56,7 @@ initializeSelect(levelSelect, 3, { placeholder: "請選擇樓層" });
 initializeSelect(positionSelect, 3, { placeholder: "請選擇版位" });
 restoreLastLocation();
 updateLocationCode();
+setScanSource("camera");
 
 tempZoneSelect.addEventListener("change", handleLocationChange);
 aisleSelect.addEventListener("change", handleLocationChange);
@@ -54,6 +65,10 @@ positionSelect.addEventListener("change", handleLocationChange);
 form.addEventListener("submit", handleSubmit);
 startScanButton.addEventListener("click", startScanner);
 stopScanButton.addEventListener("click", stopScanner);
+cameraModeButton.addEventListener("click", () => setScanSource("camera"));
+hardwareModeButton.addEventListener("click", () => setScanSource("hardware"));
+hardwareScanInput.addEventListener("keydown", handleHardwareScanKeydown);
+hardwareScanInput.addEventListener("input", handleHardwareScanInput);
 
 function restoreLastCreatedBy() {
   const lastCreatedBy = window.localStorage.getItem(LAST_CREATED_BY_KEY);
@@ -162,16 +177,38 @@ function setScannerStatus(text, type = "") {
   }
 }
 
+function setScanSource(source) {
+  currentScanSource = source;
+  const isCamera = source === "camera";
+
+  cameraModeButton.classList.toggle("active", isCamera);
+  cameraModeButton.setAttribute("aria-pressed", String(isCamera));
+  hardwareModeButton.classList.toggle("active", !isCamera);
+  hardwareModeButton.setAttribute("aria-pressed", String(!isCamera));
+
+  cameraScanPanel.hidden = !isCamera;
+  hardwareScanPanel.hidden = isCamera;
+
+  if (isCamera) {
+    setScannerStatus("按下開始掃描後，允許相機權限即可使用。");
+    clearHardwareScanBuffer();
+  } else {
+    stopScanner();
+    setScannerStatus("已切換為平板掃描槍模式。");
+    window.setTimeout(() => hardwareScanInput.focus(), 0);
+  }
+}
+
 function setScanningState(active) {
   isScannerRunning = active;
   qrReader.hidden = !active;
   startScanButton.disabled = active;
   stopScanButton.disabled = !active;
-  document.body.classList.toggle("scan-mode", active);
+  document.body.classList.toggle("camera-scan-active", active);
 }
 
 async function startScanner() {
-  if (isScannerRunning) {
+  if (isScannerRunning || currentScanSource !== "camera") {
     return;
   }
 
@@ -191,7 +228,6 @@ async function startScanner() {
     setScannerStatus("相機啟動中，請將 QR Code 對準畫面。");
 
     await startQrReaderWithFallback();
-
     zoomPreviewVideo();
   } catch (error) {
     setScanningState(false);
@@ -214,30 +250,69 @@ async function stopScanner() {
 
   html5QrCode = null;
   setScanningState(false);
-  setScannerStatus("掃描已停止。");
+
+  if (currentScanSource === "camera") {
+    setScannerStatus("掃描已停止。");
+  }
 }
 
 async function onScanSuccess(decodedText) {
   await stopScanner();
+  applyScannedPayload(decodedText, "camera");
+}
 
-  if (isDuplicateScan(decodedText)) {
+function handleHardwareScanKeydown(event) {
+  if (event.key !== "Enter") {
+    return;
+  }
+
+  event.preventDefault();
+  processHardwareScanInput();
+}
+
+function handleHardwareScanInput() {
+  window.clearTimeout(hardwareScanTimer);
+  hardwareScanTimer = window.setTimeout(processHardwareScanInput, HARDWARE_SCAN_DEBOUNCE_MS);
+}
+
+function processHardwareScanInput() {
+  window.clearTimeout(hardwareScanTimer);
+
+  const rawText = hardwareScanInput.value.trim();
+
+  if (!rawText) {
+    return;
+  }
+
+  clearHardwareScanBuffer();
+  applyScannedPayload(rawText, "hardware");
+  hardwareScanInput.focus();
+}
+
+function clearHardwareScanBuffer() {
+  hardwareScanInput.value = "";
+}
+
+function applyScannedPayload(rawText, source) {
+  if (isDuplicateScan(rawText)) {
     scanDuplicateWarning.hidden = false;
     setScannerStatus("已擋下連續重複掃描，請確認是否同一張條碼。", "error");
     setMessage("偵測到短時間內重複掃描同一張條碼。", "error");
     return;
   }
 
-  rememberScan(decodedText);
+  rememberScan(rawText);
   inputMethodInput.value = "scan";
-  rawQrInput.value = decodedText;
+  rawQrInput.value = rawText;
   scanResult.hidden = false;
-  scanResultText.textContent = decodedText;
+  scanResultText.textContent = rawText;
   scanDuplicateWarning.hidden = true;
 
-  const parsed = parseQrPayload(decodedText);
+  const parsed = parseQrPayload(rawText);
 
   if (!parsed.itemCode || !parsed.batchNo || !parsed.quantity) {
-    setScannerStatus("已掃描成功，但無法完整解析 T2 / T3 / T4，請手動確認欄位。", "error");
+    const sourceLabel = source === "hardware" ? "掃描槍" : "相機";
+    setScannerStatus(`已收到${sourceLabel}掃描內容，但無法完整解析 T2 / T3 / T4。`, "error");
     setMessage("已帶入原始 QR 內容，請手動補齊料號、批次與數量。", "error");
     return;
   }
@@ -371,7 +446,14 @@ async function handleSubmit(event) {
   scanResult.hidden = true;
   scanResultText.textContent = "-";
   scanDuplicateWarning.hidden = true;
+  clearHardwareScanBuffer();
   updateLocationCode();
+
+  if (currentScanSource === "hardware") {
+    hardwareScanInput.focus();
+  } else {
+    setScannerStatus("按下開始掃描後，允許相機權限即可使用。");
+  }
 }
 
 function getQrScannerConfig() {

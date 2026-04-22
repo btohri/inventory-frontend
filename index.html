@@ -16,15 +16,56 @@
         <div class="panel-title-row">
           <div>
             <p class="section-kicker">QR Scan</p>
-            <h3>手機掃描 QR Code</h3>
+            <h3>掃描建檔</h3>
           </div>
+        </div>
+
+        <div class="scan-source-switch" role="tablist" aria-label="掃描方式">
+          <button
+            id="cameraModeButton"
+            class="scan-source-button active"
+            type="button"
+            data-scan-source="camera"
+            aria-pressed="true"
+          >
+            手機相機掃描
+          </button>
+          <button
+            id="hardwareModeButton"
+            class="scan-source-button"
+            type="button"
+            data-scan-source="hardware"
+            aria-pressed="false"
+          >
+            平板掃描槍
+          </button>
+        </div>
+
+        <div id="camera-scan-panel">
           <div class="scan-actions">
             <button id="startScanButton" class="secondary-button" type="button">開始掃描</button>
             <button id="stopScanButton" class="ghost-button" type="button" disabled>停止掃描</button>
           </div>
+          <p id="scanner-status" class="scanner-status">按下開始掃描後，允許相機權限即可使用。</p>
+          <div id="qr-reader" class="qr-reader" hidden></div>
         </div>
-        <p id="scanner-status" class="scanner-status">按下開始掃描後，允許相機權限即可使用。</p>
-        <div id="qr-reader" class="qr-reader" hidden></div>
+
+        <div id="hardware-scan-panel" class="hardware-scan-panel" hidden>
+          <label class="field">
+            <span>掃描槍輸入區</span>
+            <input
+              id="hardwareScanInput"
+              type="text"
+              inputmode="text"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+              placeholder="點一下這裡後，直接用掃描槍掃入條碼"
+            >
+          </label>
+          <p class="panel-help">掃描槍通常會自動輸入並送出 Enter，系統會直接解析並帶入料號、批次與數量。</p>
+        </div>
+
         <div id="scan-result" class="scan-result" hidden>
           <span>最近一次掃描</span>
           <strong id="scan-result-text">-</strong>
