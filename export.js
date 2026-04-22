@@ -159,7 +159,7 @@ function buildEditRow(row) {
           儲位
           <input name="location_code" type="text" maxlength="50" value="${escAttr(row.location_code ?? "")}" required>
         </label>
-        <div class="edit-actions full-width">
+        <div class="edit-actions">
           <button class="ghost-button" type="button" data-action="cancel-edit">取消</button>
           <button class="submit-button" type="submit">儲存修改</button>
         </div>

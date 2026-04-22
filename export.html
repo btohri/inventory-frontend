@@ -118,7 +118,7 @@
     }
     .edit-form {
       display: grid;
-      grid-template-columns: repeat(5, minmax(140px, 220px));
+      grid-template-columns: repeat(5, minmax(130px, 210px)) auto;
       gap: 14px 16px;
       width: 100%;
       max-width: 100%;
@@ -133,9 +133,6 @@
       color: var(--text-muted, #888);
       letter-spacing: 0.03em;
       text-transform: uppercase;
-    }
-    .edit-form .full-width {
-      grid-column: 1 / -1;
     }
     .edit-form .location-field {
       min-width: 0;
@@ -154,10 +151,11 @@
       display: flex;
       gap: 10px;
       justify-content: flex-start;
-      margin-top: 8px;
+      align-items: center;
+      white-space: nowrap;
     }
     .edit-actions button {
-      min-width: 180px;
+      min-width: 140px;
       width: auto;
     }
     @media (max-width: 1100px) {
@@ -171,6 +169,10 @@
       .edit-form {
         grid-template-columns: repeat(2, minmax(220px, 1fr));
       }
+      .edit-actions {
+        grid-column: 1 / -1;
+        margin-top: 8px;
+      }
     }
     @media (max-width: 520px) {
       .page-shell {
@@ -183,7 +185,6 @@
       .filter-grid { grid-template-columns: 1fr; }
       .filter-grid .full-width { grid-column: 1; }
       .edit-form { grid-template-columns: 1fr; }
-      .edit-form .full-width { grid-column: 1; }
       .edit-actions { justify-content: stretch; }
       .edit-actions button { flex: 1; }
     }
