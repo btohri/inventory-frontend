@@ -161,6 +161,15 @@ h3 {
   border: 1px solid rgba(24, 50, 41, 0.08);
 }
 
+body.scan-source-camera .hardware-scan-panel {
+  display: none !important;
+}
+
+body.scan-source-hardware .scanner-status,
+body.scan-source-hardware .scan-actions {
+  display: none;
+}
+
 .export-panel {
   margin-top: 18px;
 }

@@ -180,6 +180,8 @@ function setScannerStatus(text, type = "") {
 function setScanSource(source) {
   currentScanSource = source;
   const isCamera = source === "camera";
+  document.body.classList.toggle("scan-source-camera", isCamera);
+  document.body.classList.toggle("scan-source-hardware", !isCamera);
 
   cameraModeButton.classList.toggle("active", isCamera);
   cameraModeButton.setAttribute("aria-pressed", String(isCamera));
