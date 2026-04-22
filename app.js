@@ -290,6 +290,15 @@ function processHardwareScanInput() {
     return;
   }
 
+  if (!hasRequiredHardwareQrTags(rawText)) {
+    clearHardwareScanBuffer();
+    scanDuplicateWarning.hidden = true;
+    setScannerStatus("掃描槍格式錯誤，內容必須包含 T1 與 T2，請重新掃描。", "error");
+    setMessage("掃描槍格式不正確，請確認條碼內容後重新掃描。", "error");
+    hardwareScanInput.focus();
+    return;
+  }
+
   clearHardwareScanBuffer();
   applyScannedPayload(rawText, "hardware");
   hardwareScanInput.focus();
@@ -297,6 +306,14 @@ function processHardwareScanInput() {
 
 function clearHardwareScanBuffer() {
   hardwareScanInput.value = "";
+}
+
+function hasRequiredHardwareQrTags(rawText) {
+  return hasQrTag(rawText, "T1") && hasQrTag(rawText, "T2");
+}
+
+function hasQrTag(rawText, tag) {
+  return new RegExp(`${tag}(\\b|\\s*[:=,])`, "i").test(rawText);
 }
 
 function applyScannedPayload(rawText, source) {

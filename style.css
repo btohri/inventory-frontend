@@ -130,6 +130,7 @@ h3 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-top: 16px;
+  margin-bottom: 20px;
 }
 
 .scan-source-button {
@@ -200,6 +201,7 @@ body.camera-scan-active .scanner-panel {
   display: flex;
   gap: 10px;
   width: 100%;
+  padding-top: 4px;
 }
 
 .field {
