@@ -13,7 +13,7 @@ const hasSupabaseConfig =
   SUPABASE_ANON_KEY !== "YOUR_SUPABASE_ANON_KEY";
 
 const supabase = hasSupabaseConfig
-  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  ? window.supabase?.createClient?.(SUPABASE_URL, SUPABASE_ANON_KEY) ?? null
   : null;
 
 let queryResults = [];

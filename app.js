@@ -37,7 +37,7 @@ const hasSupabaseConfig =
   SUPABASE_ANON_KEY !== "YOUR_SUPABASE_ANON_KEY";
 
 const supabase = hasSupabaseConfig
-  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  ? window.supabase?.createClient?.(SUPABASE_URL, SUPABASE_ANON_KEY) ?? null
   : null;
 
 restoreLastCreatedBy();
@@ -190,28 +190,9 @@ async function startScanner() {
     setScanningState(true);
     setScannerStatus("相機啟動中，請將 QR Code 對準畫面。");
 
-    await html5QrCode.start(
-      { facingMode: "environment", advanced: [{ zoom: 1 }] },
-      {
-        fps: 30,
-        aspectRatio: 1,
-        qrbox: (w, h) => {
-          const size = Math.min(w, h) * 0.95;
-          return { width: size, height: size };
-        },
-        experimentalFeatures: {
-          useBarCodeDetectorIfSupported: true,
-        },
-      },
-      onScanSuccess,
-      () => {}
-    );
+    await startQrReaderWithFallback();
 
-    const videoEl = document.querySelector("#qr-reader video");
-    if (videoEl) {
-      videoEl.style.transform = "scale(1.8)";
-      videoEl.style.transformOrigin = "center center";
-    }
+    zoomPreviewVideo();
   } catch (error) {
     setScanningState(false);
     setScannerStatus(`無法啟動相機：${error.message}`, "error");
@@ -391,4 +372,51 @@ async function handleSubmit(event) {
   scanResultText.textContent = "-";
   scanDuplicateWarning.hidden = true;
   updateLocationCode();
+}
+
+function getQrScannerConfig() {
+  return {
+    fps: 20,
+    aspectRatio: 1,
+    qrbox: (w, h) => {
+      const size = Math.min(w, h) * 0.9;
+      return { width: size, height: size };
+    },
+    experimentalFeatures: {
+      useBarCodeDetectorIfSupported: true,
+    },
+  };
+}
+
+async function startQrReaderWithFallback() {
+  const config = getQrScannerConfig();
+  const cameraAttempts = [
+    { facingMode: { exact: "environment" } },
+    { facingMode: "environment" },
+    { facingMode: "user" },
+  ];
+
+  let lastError = null;
+
+  for (const cameraConfig of cameraAttempts) {
+    try {
+      await html5QrCode.start(cameraConfig, config, onScanSuccess, () => {});
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError ?? new Error("找不到可用的相機。");
+}
+
+function zoomPreviewVideo() {
+  const videoEl = document.querySelector("#qr-reader video");
+
+  if (!videoEl) {
+    return;
+  }
+
+  videoEl.style.transform = "scale(1.8)";
+  videoEl.style.transformOrigin = "center center";
 }
