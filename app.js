@@ -13,6 +13,8 @@ const locationCodeLabel = document.querySelector("#locationCode");
 const createdByInput = document.querySelector("#createdBy");
 const itemCodeInput = document.querySelector("#itemCode");
 const batchNoInput = document.querySelector("#batchNo");
+const weightPerBucketInput = document.querySelector("#weightPerBucket");
+const bucketCountInput = document.querySelector("#bucketCount");
 const quantityInput = document.querySelector("#quantity");
 const inputMethodInput = document.querySelector("#inputMethod");
 const rawQrInput = document.querySelector("#rawQr");
@@ -63,6 +65,8 @@ aisleSelect.addEventListener("change", handleLocationChange);
 levelSelect.addEventListener("change", handleLocationChange);
 positionSelect.addEventListener("change", handleLocationChange);
 form.addEventListener("submit", handleSubmit);
+weightPerBucketInput.addEventListener("input", updateComputedQuantity);
+bucketCountInput.addEventListener("input", updateComputedQuantity);
 startScanButton.addEventListener("click", startScanner);
 stopScanButton.addEventListener("click", stopScanner);
 cameraModeButton.addEventListener("click", () => setScanSource("camera"));
@@ -175,6 +179,36 @@ function setScannerStatus(text, type = "") {
   if (type) {
     scannerStatus.classList.add(type);
   }
+}
+
+function updateComputedQuantity() {
+  const weightPerBucket = Number(weightPerBucketInput.value);
+  const bucketCount = Number(bucketCountInput.value);
+
+  if (
+    Number.isFinite(weightPerBucket) &&
+    weightPerBucket > 0 &&
+    Number.isInteger(bucketCount) &&
+    bucketCount > 0
+  ) {
+    quantityInput.value = formatQuantity(weightPerBucket * bucketCount);
+    return;
+  }
+
+  quantityInput.value = "";
+}
+
+function formatQuantity(value) {
+  return Number.parseFloat(value.toFixed(2)).toString();
+}
+
+function normalizeNumericInput(value) {
+  if (value == null) {
+    return "";
+  }
+
+  const match = String(value).match(/-?\d+(?:\.\d+)?/);
+  return match ? match[0] : "";
 }
 
 function setScanSource(source) {
@@ -337,14 +371,27 @@ function applyScannedPayload(rawText, source) {
   if (!parsed.itemCode || !parsed.batchNo || !parsed.quantity) {
     const sourceLabel = source === "hardware" ? "掃描槍" : "相機";
     setScannerStatus(`已收到${sourceLabel}掃描內容，但無法完整解析 T2 / T3 / T4。`, "error");
-    setMessage("已帶入原始 QR 內容，請手動補齊料號、批次與數量。", "error");
+    setMessage("已帶入原始 QR 內容，請手動補齊料號、批次、每桶重量與桶數。", "error");
+    return;
+  }
+
+  const normalizedWeight = normalizeNumericInput(parsed.quantity);
+
+  if (!normalizedWeight) {
+    setScannerStatus("掃描成功，但每桶重量格式無法辨識，請手動確認。", "error");
+    setMessage("已帶入料號與批次，請手動補上每桶重量與桶數。", "error");
+    itemCodeInput.value = parsed.itemCode;
+    batchNoInput.value = parsed.batchNo;
+    weightPerBucketInput.value = "";
+    updateComputedQuantity();
     return;
   }
 
   itemCodeInput.value = parsed.itemCode;
   batchNoInput.value = parsed.batchNo;
-  quantityInput.value = parsed.quantity;
-  setScannerStatus("掃描成功，已自動帶入料號、批次與數量。", "success");
+  weightPerBucketInput.value = normalizedWeight;
+  updateComputedQuantity();
+  setScannerStatus("掃描成功，已自動帶入料號、批次與每桶重量。", "success");
   setMessage("QR 解析成功，請確認儲位後送出建檔。", "success");
 }
 
@@ -409,6 +456,8 @@ async function handleSubmit(event) {
   const formData = new FormData(form);
   const itemCode = formData.get("itemCode")?.toString().trim();
   const batchNo = formData.get("batchNo")?.toString().trim();
+  const weightPerBucket = Number(formData.get("weightPerBucket"));
+  const bucketCount = Number(formData.get("bucketCount"));
   const quantity = Number(formData.get("quantity"));
   const tempZone = formData.get("tempZone")?.toString();
   const aisle = formData.get("aisle")?.toString();
@@ -417,8 +466,17 @@ async function handleSubmit(event) {
   const createdBy = formData.get("createdBy")?.toString().trim();
   const rawQr = formData.get("rawQr")?.toString().trim() || null;
 
-  if (!itemCode || !batchNo || !Number.isInteger(quantity) || quantity <= 0) {
-    setMessage("請確認料號、批次與數量皆已正確填寫。", "error");
+  if (
+    !itemCode ||
+    !batchNo ||
+    !Number.isFinite(weightPerBucket) ||
+    weightPerBucket <= 0 ||
+    !Number.isInteger(bucketCount) ||
+    bucketCount <= 0 ||
+    !Number.isFinite(quantity) ||
+    quantity <= 0
+  ) {
+    setMessage("請確認料號、批次、每桶重量、桶數與總數量皆已正確填寫。", "error");
     return;
   }
 
@@ -436,6 +494,8 @@ async function handleSubmit(event) {
   const payload = {
     item_code: itemCode,
     batch_no: batchNo,
+    weight_per_bucket: weightPerBucket,
+    bucket_count: bucketCount,
     quantity,
     temp_zone: tempZone,
     aisle: Number(aisle),
@@ -471,6 +531,7 @@ async function handleSubmit(event) {
   scanResultText.textContent = "-";
   scanDuplicateWarning.hidden = true;
   clearHardwareScanBuffer();
+  updateComputedQuantity();
   updateLocationCode();
 
   if (currentScanSource === "hardware") {

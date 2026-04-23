@@ -23,6 +23,7 @@ queryButton.addEventListener("click", runQuery);
 exportButton.addEventListener("click", exportExcel);
 previewBody.addEventListener("click", handlePreviewClick);
 previewBody.addEventListener("submit", handleEditSubmit);
+previewBody.addEventListener("input", handleEditInput);
 
 function setMessage(text, type = "") {
   messageBox.textContent = text;
@@ -55,7 +56,7 @@ async function runQuery() {
 
   let query = supabase
     .from("inventory_records")
-    .select("id, created_at, created_by, item_code, batch_no, quantity, temp_zone, aisle, level, position, location_code, input_method")
+    .select("id, created_at, created_by, item_code, batch_no, weight_per_bucket, bucket_count, quantity, temp_zone, aisle, level, position, location_code, input_method")
     .order("created_at", { ascending: false });
 
   if (dateFrom) {
@@ -114,6 +115,8 @@ function renderPreview(rows) {
       <td>${esc(row.created_by)}</td>
       <td>${esc(row.item_code)}</td>
       <td>${esc(row.batch_no)}</td>
+      <td>${row.weight_per_bucket ?? ""}</td>
+      <td>${row.bucket_count ?? ""}</td>
       <td>${row.quantity ?? ""}</td>
       <td>${esc(row.location_code)}</td>
       <td>${esc(row.input_method)}</td>
@@ -137,7 +140,7 @@ function buildEditRow(row) {
   const tr = document.createElement("tr");
   tr.className = "edit-row";
   tr.innerHTML = `
-    <td colspan="8">
+    <td colspan="10">
       <form class="edit-form" data-id="${escAttr(row.id ?? "")}">
         <label>
           建立人員
@@ -152,8 +155,16 @@ function buildEditRow(row) {
           <input name="batch_no" type="text" maxlength="100" value="${escAttr(row.batch_no ?? "")}" required>
         </label>
         <label>
-          數量
-          <input name="quantity" type="number" min="1" step="1" value="${escAttr(row.quantity ?? "")}" required>
+          每桶重量(KG)
+          <input name="weight_per_bucket" type="number" min="0.01" step="0.01" value="${escAttr(row.weight_per_bucket ?? "")}" required>
+        </label>
+        <label>
+          桶數
+          <input name="bucket_count" type="number" min="1" step="1" value="${escAttr(row.bucket_count ?? "")}" required>
+        </label>
+        <label>
+          總數量(KG)
+          <input name="quantity" type="number" min="0.01" step="0.01" value="${escAttr(row.quantity ?? "")}" readonly required>
         </label>
         <label class="location-field">
           儲位
@@ -190,6 +201,45 @@ function handlePreviewClick(event) {
   }
 }
 
+function handleEditInput(event) {
+  const form = event.target.closest(".edit-form");
+
+  if (!form) {
+    return;
+  }
+
+  if (event.target.name !== "weight_per_bucket" && event.target.name !== "bucket_count") {
+    return;
+  }
+
+  updateEditFormQuantity(form);
+}
+
+function updateEditFormQuantity(form) {
+  const weightInput = form.querySelector('[name="weight_per_bucket"]');
+  const bucketInput = form.querySelector('[name="bucket_count"]');
+  const quantityInput = form.querySelector('[name="quantity"]');
+
+  if (!weightInput || !bucketInput || !quantityInput) {
+    return;
+  }
+
+  const weightPerBucket = Number(weightInput.value);
+  const bucketCount = Number(bucketInput.value);
+
+  if (
+    Number.isFinite(weightPerBucket) &&
+    weightPerBucket > 0 &&
+    Number.isInteger(bucketCount) &&
+    bucketCount > 0
+  ) {
+    quantityInput.value = formatQuantity(weightPerBucket * bucketCount);
+    return;
+  }
+
+  quantityInput.value = "";
+}
+
 async function handleEditSubmit(event) {
   const form = event.target.closest(".edit-form");
 
@@ -209,6 +259,8 @@ async function handleEditSubmit(event) {
   const createdBy = formData.get("created_by")?.toString().trim();
   const itemCode = formData.get("item_code")?.toString().trim();
   const batchNo = formData.get("batch_no")?.toString().trim();
+  const weightPerBucket = Number(formData.get("weight_per_bucket"));
+  const bucketCount = Number(formData.get("bucket_count"));
   const quantity = Number(formData.get("quantity"));
   const locationCode = formData.get("location_code")?.toString().trim();
   const locationParts = parseLocationCode(locationCode);
@@ -218,8 +270,19 @@ async function handleEditSubmit(event) {
     return;
   }
 
-  if (!createdBy || !itemCode || !batchNo || !locationCode || !Number.isInteger(quantity) || quantity <= 0) {
-    setMessage("請確認建立人員、料號、批次、數量與儲位皆已正確填寫。", "error");
+  if (
+    !createdBy ||
+    !itemCode ||
+    !batchNo ||
+    !locationCode ||
+    !Number.isFinite(weightPerBucket) ||
+    weightPerBucket <= 0 ||
+    !Number.isInteger(bucketCount) ||
+    bucketCount <= 0 ||
+    !Number.isFinite(quantity) ||
+    quantity <= 0
+  ) {
+    setMessage("請確認建立人員、料號、批次、每桶重量、桶數、總數量與儲位皆已正確填寫。", "error");
     return;
   }
 
@@ -238,6 +301,8 @@ async function handleEditSubmit(event) {
       created_by: createdBy,
       item_code: itemCode,
       batch_no: batchNo,
+      weight_per_bucket: weightPerBucket,
+      bucket_count: bucketCount,
       quantity,
       temp_zone: locationParts.tempZone,
       aisle: locationParts.aisle,
@@ -246,7 +311,7 @@ async function handleEditSubmit(event) {
       location_code: locationCode,
     })
     .eq("id", id)
-    .select("id, created_at, created_by, item_code, batch_no, quantity, temp_zone, aisle, level, position, location_code, input_method")
+    .select("id, created_at, created_by, item_code, batch_no, weight_per_bucket, bucket_count, quantity, temp_zone, aisle, level, position, location_code, input_method")
     .single();
 
   if (submit) submit.disabled = false;
@@ -283,6 +348,10 @@ function escAttr(val) {
     .replace(/>/g, "&gt;");
 }
 
+function formatQuantity(value) {
+  return Number.parseFloat(value.toFixed(2)).toString();
+}
+
 async function exportExcel() {
   if (!window.XLSX) {
     setMessage("Excel 匯出元件尚未載入，請稍後再試。", "error");
@@ -298,6 +367,8 @@ async function exportExcel() {
     建立人員: row.created_by ?? "",
     料號: row.item_code ?? "",
     批次: row.batch_no ?? "",
+    每桶重量KG: row.weight_per_bucket ?? "",
+    桶數: row.bucket_count ?? "",
     數量: row.quantity ?? "",
     儲位: row.location_code ?? "",
     輸入方式: row.input_method ?? "",
@@ -310,6 +381,8 @@ async function exportExcel() {
     { wch: 14 },
     { wch: 20 },
     { wch: 20 },
+    { wch: 14 },
+    { wch: 10 },
     { wch: 10 },
     { wch: 16 },
     { wch: 12 },

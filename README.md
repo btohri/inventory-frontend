@@ -51,13 +51,13 @@
 - 平板模式：按 `平板掃描槍` 後，原本顯示相機提示的區域會切換成可輸入欄位，可直接讓掃描槍輸入條碼
 - 兩種模式都會共用同一套 QR 解析邏輯
 - 系統會自動解析 `T2 / T3 / T4`
-- 自動帶入 `料號 / 批次 / 數量`
+- 自動帶入 `料號 / 批次 / 每桶重量`
 
 目前解析規則：
 
 - `T2` → `item_code`
 - `T3` → `batch_no`
-- `T4` → `quantity`
+- `T4` → `weight_per_bucket`
 
 如果 QR 格式不完全符合規則，系統仍會保留原始 QR 內容，方便手動修正。
 
@@ -118,7 +118,7 @@ Excel 匯出已改為獨立頁面 `export.html`，避免影響現場建檔頁。
 
 匯出欄位：
 
-- 時間、建立人員、料號、批次、數量、儲位、輸入方式
+- 時間、建立人員、料號、批次、每桶重量、桶數、總數量、儲位、輸入方式
 
 注意：
 
@@ -164,6 +164,23 @@ location_code = 溫層-走道位置-樓層-版位
 - 如果你的資料表和目前專案一樣，已經有 `uuid` 型別的 `id` 主鍵，就不需要新增欄位
 - 如果沒有 `id` 主鍵，才需要先補一個可唯一識別每筆資料的主鍵欄位
 
+如果你要使用「每桶重量 × 桶數」這版，`inventory_records` 請另外新增：
+
+- `weight_per_bucket`：每桶重量，建議用 `numeric(12,2)`
+- `bucket_count`：桶數，建議用 `integer`
+- `quantity`：總數量，建議也用 `numeric(12,2)`；如果你原本是 `integer`，且未來可能有小數重量，建議一併改型別
+
+可參考 SQL：
+
+```sql
+alter table public.inventory_records
+add column if not exists weight_per_bucket numeric(12,2),
+add column if not exists bucket_count integer;
+
+alter table public.inventory_records
+alter column quantity type numeric(12,2) using quantity::numeric;
+```
+
 接著新增或確認查詢與修改權限：
 
 ```sql
@@ -201,7 +218,7 @@ with check (true);
 
 1. 開啟建檔頁
 2. 選擇建立人員
-3. 輸入料號、批次、數量
+3. 輸入料號、批次、每桶重量、桶數
 4. 選擇溫層、走道位置、樓層、版位
 5. 按 `送出建檔`
 
@@ -211,7 +228,7 @@ with check (true);
 2. 選擇建立人員
 3. 按 `開始掃描`
 4. 掃描 QR Code
-5. 確認自動帶入的料號、批次、數量
+5. 確認自動帶入的料號、批次、每桶重量，再補桶數
 6. 選擇儲位
 7. 按 `送出建檔`
 
@@ -221,7 +238,7 @@ with check (true);
 2. 選擇建立人員
 3. 按 `平板掃描槍`
 4. 在掃描區直接用掃描槍掃入條碼
-5. 確認自動帶入的料號、批次、數量
+5. 確認自動帶入的料號、批次、每桶重量，再補桶數
 6. 選擇儲位
 7. 按 `送出建檔`
 
