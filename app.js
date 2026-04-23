@@ -57,8 +57,10 @@ initializeSelect(aisleSelect, 20, { padStart: 2, placeholder: "請選擇走道�
 initializeSelect(levelSelect, 3, { placeholder: "請選擇樓層" });
 initializeSelect(positionSelect, 3, { placeholder: "請選擇版位" });
 restoreLastLocation();
+ensureDefaultBucketCount();
 updateLocationCode();
 setScanSource("camera");
+updateComputedQuantity();
 
 tempZoneSelect.addEventListener("change", handleLocationChange);
 aisleSelect.addEventListener("change", handleLocationChange);
@@ -209,6 +211,12 @@ function normalizeNumericInput(value) {
 
   const match = String(value).match(/-?\d+(?:\.\d+)?/);
   return match ? match[0] : "";
+}
+
+function ensureDefaultBucketCount() {
+  if (!bucketCountInput.value) {
+    bucketCountInput.value = "1";
+  }
 }
 
 function setScanSource(source) {
@@ -525,6 +533,7 @@ async function handleSubmit(event) {
   form.reset();
   createdByInput.value = createdBy;
   restoreLastLocation();
+  ensureDefaultBucketCount();
   inputMethodInput.value = "manual";
   rawQrInput.value = "";
   scanResult.hidden = true;

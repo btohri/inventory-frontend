@@ -155,15 +155,15 @@ function buildEditRow(row) {
           <input name="batch_no" type="text" maxlength="100" value="${escAttr(row.batch_no ?? "")}" required>
         </label>
         <label>
-          每桶重量(KG)
+          一桶多少(KG)
           <input name="weight_per_bucket" type="number" min="0.01" step="0.01" value="${escAttr(row.weight_per_bucket ?? "")}" required>
         </label>
         <label>
-          桶數
+          有幾桶
           <input name="bucket_count" type="number" min="1" step="1" value="${escAttr(row.bucket_count ?? "")}" required>
         </label>
         <label>
-          總數量(KG)
+          共多重(KG)
           <input name="quantity" type="number" min="0.01" step="0.01" value="${escAttr(row.quantity ?? "")}" readonly required>
         </label>
         <label class="location-field">
@@ -367,9 +367,9 @@ async function exportExcel() {
     建立人員: row.created_by ?? "",
     料號: row.item_code ?? "",
     批次: row.batch_no ?? "",
-    每桶重量KG: row.weight_per_bucket ?? "",
-    桶數: row.bucket_count ?? "",
-    數量: row.quantity ?? "",
+    一桶多少KG: row.weight_per_bucket ?? "",
+    有幾桶: row.bucket_count ?? "",
+    共多重KG: row.quantity ?? "",
     儲位: row.location_code ?? "",
     輸入方式: row.input_method ?? "",
   }));
