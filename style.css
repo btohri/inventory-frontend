@@ -209,6 +209,11 @@ body.camera-scan-active .scanner-panel {
   gap: 8px;
 }
 
+.inline-field-pair {
+  display: grid;
+  gap: 12px;
+}
+
 .field span {
   font-size: 0.95rem;
   font-weight: 700;
@@ -466,6 +471,11 @@ textarea:focus {
 
   .scan-source-switch {
     grid-template-columns: 1fr;
+  }
+
+  .inline-field-pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
   }
 
   .person-row {
