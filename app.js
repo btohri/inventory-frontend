@@ -81,7 +81,7 @@ const hasSupabaseConfig =
   SUPABASE_URL !== "YOUR_SUPABASE_URL" &&
   SUPABASE_ANON_KEY !== "YOUR_SUPABASE_ANON_KEY";
 
-const supabase = hasSupabaseConfig
+const supabaseClient = hasSupabaseConfig
   ? window.supabase?.createClient?.(SUPABASE_URL, SUPABASE_ANON_KEY) ?? null
   : null;
 
@@ -655,7 +655,7 @@ function isDuplicateScan(rawText) {
 async function handleSubmit(event) {
   event.preventDefault();
 
-  if (!supabase) {
+  if (!supabaseClient) {
     setMessage("請先在 app.js 填入 SUPABASE_URL 與 SUPABASE_ANON_KEY。", "error");
     return;
   }
@@ -734,7 +734,7 @@ async function handleSubmit(event) {
   submitButton.disabled = true;
   setMessage("資料送出中，請稍候...");
 
-  const { error } = await supabase.from("inventory_records").insert(payload);
+  const { error } = await supabaseClient.from("inventory_records").insert(payload);
 
   submitButton.disabled = false;
 
