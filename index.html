@@ -20,11 +20,9 @@
       <div class="factory-choice-grid" aria-label="選擇廠別">
         <button class="factory-choice-button" type="button" data-factory="food">
           <span>食品廠</span>
-          <strong>使用原本儲位規則</strong>
         </button>
         <button class="factory-choice-button" type="button" data-factory="mask">
           <span>面膜廠</span>
-          <strong>依分類與項目自動帶入規則</strong>
         </button>
       </div>
     </section>
@@ -150,6 +148,20 @@
           <p id="last-location-note" class="last-location-note" hidden></p>
 
           <div id="mask-rule-panel" class="mask-rule-panel" hidden>
+            <label class="field">
+              <span>面膜分類</span>
+              <select id="maskSeries">
+                <option value="">請選擇分類</option>
+                <option value="A">A 分類</option>
+                <option value="B">B 分類</option>
+                <option value="C">C 分類</option>
+                <option value="D">D 分類</option>
+                <option value="E">E 分類</option>
+                <option value="F">F 分類</option>
+                <option value="G">G 分類</option>
+                <option value="H">H 分類</option>
+              </select>
+            </label>
             <p id="maskRuleNote" class="mask-rule-note">請先選擇面膜走道位置，系統會依規則限制樓層與版位。</p>
           </div>
 
@@ -158,8 +170,8 @@
               <span>溫層</span>
               <select id="tempZone" name="tempZone" required>
                 <option value="">請選擇</option>
-                <option value="F">F 冷藏</option>
-                <option value="G">G 冷凍</option>
+                <option value="F">冷藏</option>
+                <option value="G">常溫</option>
               </select>
             </label>
 
@@ -190,6 +202,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
-  <script src="./app.js?v=20260424-2"></script>
+  <script src="./app.js?v=20260424-3"></script>
 </body>
 </html>

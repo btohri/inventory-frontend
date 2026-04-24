@@ -90,20 +90,28 @@ body::before {
 
 .factory-choice-button {
   display: grid;
-  gap: 8px;
-  min-height: 132px;
-  padding: 18px;
-  border: 1px solid rgba(29, 122, 90, 0.18);
+  place-items: center;
+  min-height: 118px;
+  padding: 18px 20px;
+  border: 1px solid rgba(29, 122, 90, 0.22);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.72);
+  background: linear-gradient(135deg, rgba(235, 250, 243, 0.96), rgba(255, 255, 255, 0.76));
   color: var(--text-main);
   font: inherit;
-  text-align: left;
+  text-align: center;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.42);
+}
+
+.factory-choice-button[data-factory="mask"] {
+  border-color: rgba(166, 70, 104, 0.26);
+  background: linear-gradient(135deg, rgba(255, 238, 244, 0.98), rgba(255, 255, 255, 0.76));
+  color: #4a2230;
 }
 
 .factory-choice-button span {
-  font-size: 1.35rem;
+  font-size: clamp(2rem, 5vw, 3rem);
   font-weight: 800;
+  line-height: 1;
 }
 
 .factory-choice-button strong {

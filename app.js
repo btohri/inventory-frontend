@@ -69,6 +69,7 @@ const aisleSelect = document.querySelector("#aisle");
 const levelSelect = document.querySelector("#level");
 const positionSelect = document.querySelector("#position");
 const maskRulePanel = document.querySelector("#mask-rule-panel");
+const maskSeriesSelect = document.querySelector("#maskSeries");
 const maskRuleNote = document.querySelector("#maskRuleNote");
 
 let html5QrCode = null;
@@ -104,6 +105,7 @@ tempZoneSelect.addEventListener("change", handleLocationChange);
 aisleSelect.addEventListener("change", handleAisleChange);
 levelSelect.addEventListener("change", handleLocationChange);
 positionSelect.addEventListener("change", handleLocationChange);
+maskSeriesSelect.addEventListener("change", handleMaskSeriesChange);
 form.addEventListener("submit", handleSubmit);
 weightPerBucketInput.addEventListener("input", updateComputedQuantity);
 bucketCountInput.addEventListener("input", updateComputedQuantity);
@@ -130,6 +132,7 @@ function setFactory(factory) {
   if (factory === "mask") {
     setupMaskLocationSelects();
   } else {
+    maskSeriesSelect.value = "";
     resetTempZoneOptions();
     resetLocationSelectRanges();
   }
@@ -177,8 +180,8 @@ function resetTempZoneOptions() {
   setSelectOptions(
     tempZoneSelect,
     [
-      { value: "F", label: "F 冷藏" },
-      { value: "G", label: "G 常溫" },
+      { value: "F", label: "冷藏" },
+      { value: "G", label: "常溫" },
     ],
     "請選擇溫層"
   );
@@ -186,11 +189,21 @@ function resetTempZoneOptions() {
 
 function setupMaskLocationSelects() {
   const currentAisle = aisleSelect.value;
+  const currentSeries = parseMaskLocation(currentAisle)?.category || maskSeriesSelect.value;
   resetTempZoneOptions();
-  setSelectOptions(aisleSelect, getMaskLocationOptions(), "請選擇走道位置");
+  maskSeriesSelect.value = getMaskSeriesOptions().includes(currentSeries) ? currentSeries : "";
+  setSelectOptions(aisleSelect, getMaskLocationOptions(maskSeriesSelect.value), "請選擇走道位置");
   initializeSelect(levelSelect, 3, { padStart: 2, placeholder: "請選擇樓層" });
   initializeSelect(positionSelect, 3, { placeholder: "請選擇版位" });
   aisleSelect.value = getMaskLocationRule(currentAisle) ? currentAisle : "";
+  levelSelect.value = "";
+  positionSelect.value = "";
+  applySelectedMaskLocationRule();
+}
+
+function handleMaskSeriesChange() {
+  setSelectOptions(aisleSelect, getMaskLocationOptions(maskSeriesSelect.value), "請選擇走道位置");
+  aisleSelect.value = "";
   levelSelect.value = "";
   positionSelect.value = "";
   applySelectedMaskLocationRule();
@@ -212,7 +225,9 @@ function applySelectedMaskLocationRule() {
     resetTempZoneOptions();
     initializeSelect(levelSelect, 3, { padStart: 2, placeholder: "請選擇樓層" });
     initializeSelect(positionSelect, 3, { placeholder: "請選擇版位" });
-    maskRuleNote.textContent = "請先選擇面膜走道位置，系統會依規則限制樓層與版位。";
+    maskRuleNote.textContent = maskSeriesSelect.value
+      ? "請選擇面膜走道位置，系統會依規則限制樓層與版位。"
+      : "請先選擇面膜分類，再選擇走道位置。";
     updateLocationCode();
     return;
   }
@@ -220,9 +235,10 @@ function applySelectedMaskLocationRule() {
   const previousLevel = levelSelect.value;
   const previousPosition = positionSelect.value;
   const tempZone = TEMP_ZONE_BY_LABEL[rule.temp];
+  maskSeriesSelect.value = rule.category;
   setSelectOptions(
     tempZoneSelect,
-    tempZone ? [{ value: tempZone, label: `${tempZone} ${rule.temp}` }] : [],
+    tempZone ? [{ value: tempZone, label: rule.temp }] : [],
     "請選擇溫層"
   );
   tempZoneSelect.value = tempZone || "";
@@ -245,8 +261,8 @@ function setSelectOptions(element, options, placeholder) {
   });
 }
 
-function getMaskLocationOptions() {
-  return MASK_FACTORY_RULES.flatMap((rule) => {
+function getMaskLocationOptions(series = "") {
+  return MASK_FACTORY_RULES.filter((rule) => !series || rule.category === series).flatMap((rule) => {
     const options = [];
 
     for (let item = rule.start; item <= rule.end; item += 1) {
@@ -256,6 +272,10 @@ function getMaskLocationOptions() {
 
     return options;
   });
+}
+
+function getMaskSeriesOptions() {
+  return [...new Set(MASK_FACTORY_RULES.map((rule) => rule.category))];
 }
 
 function getMaskLocationRule(location) {
@@ -692,6 +712,11 @@ async function handleSubmit(event) {
     return;
   }
 
+  if (!currentFactory || !FACTORIES[currentFactory]) {
+    setMessage("請先選擇食品廠或面膜廠。", "error");
+    return;
+  }
+
   if (!tempZone || !aisle || !level || !position) {
     setMessage("請完整選擇溫層、走道位置、樓層與版位。", "error");
     return;
@@ -718,6 +743,7 @@ async function handleSubmit(event) {
   const payload = {
     item_code: itemCode,
     batch_no: batchNo,
+    factory_type: FACTORIES[currentFactory],
     weight_per_bucket: weightPerBucket,
     bucket_count: bucketCount,
     quantity,
