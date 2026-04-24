@@ -5,7 +5,37 @@ const LAST_LOCATION_KEY = "inventory-last-location";
 const LAST_SCAN_KEY = "inventory-last-scan";
 const DUPLICATE_SCAN_WINDOW_MS = 8000;
 const HARDWARE_SCAN_DEBOUNCE_MS = 180;
+const FACTORIES = {
+  food: "食品廠",
+  mask: "面膜廠",
+};
+const TEMP_ZONE_BY_LABEL = {
+  "冷藏": "F",
+  "常溫": "G",
+};
+const MASK_FACTORY_RULES = [
+  { category: "A", start: 1, end: 10, aisle: "03", levels: 3, temp: "常溫" },
+  { category: "A", start: 11, end: 26, aisle: "01", levels: 3, temp: "常溫" },
+  { category: "A", start: 27, end: 32, aisle: "03", levels: 3, temp: "常溫" },
+  { category: "A", start: 33, end: 33, aisle: "01", levels: 2, temp: "常溫" },
+  { category: "B", start: 1, end: 14, aisle: "02", levels: 3, temp: "冷藏" },
+  { category: "B", start: 15, end: 16, aisle: "01", levels: 3, temp: "冷藏" },
+  { category: "C", start: 1, end: 2, aisle: "03", levels: 3, temp: "常溫" },
+  { category: "C", start: 3, end: 8, aisle: "01", levels: 2, temp: "常溫" },
+  { category: "E", start: 1, end: 50, aisle: "01", levels: 3, temp: "常溫" },
+  { category: "D", start: 1, end: 18, aisle: "03", levels: 3, temp: "常溫" },
+  { category: "D", start: 19, end: 36, aisle: "02", levels: 3, temp: "常溫" },
+  { category: "D", start: 37, end: 58, aisle: "03", levels: 3, temp: "常溫" },
+  { category: "G", start: 1, end: 2, aisle: "02", levels: 3, temp: "冷藏" },
+  { category: "H", start: 1, end: 3, aisle: "01", levels: 2, temp: "常溫" },
+  { category: "F", start: 1, end: 2, aisle: "03", levels: 3, temp: "常溫" },
+];
 
+const factorySelection = document.querySelector("#factory-selection");
+const factoryChoiceButtons = document.querySelectorAll("[data-factory]");
+const inventoryCard = document.querySelector("#inventory-card");
+const activeFactoryLabel = document.querySelector("#activeFactoryLabel");
+const changeFactoryButton = document.querySelector("#changeFactoryButton");
 const form = document.querySelector("#inventory-form");
 const submitButton = document.querySelector("#submitButton");
 const messageBox = document.querySelector("#form-message");
@@ -38,11 +68,16 @@ const tempZoneSelect = document.querySelector("#tempZone");
 const aisleSelect = document.querySelector("#aisle");
 const levelSelect = document.querySelector("#level");
 const positionSelect = document.querySelector("#position");
+const maskRulePanel = document.querySelector("#mask-rule-panel");
+const maskCategorySelect = document.querySelector("#maskCategory");
+const maskItemSelect = document.querySelector("#maskItem");
+const maskRuleNote = document.querySelector("#maskRuleNote");
 
 let html5QrCode = null;
 let isScannerRunning = false;
 let currentScanSource = "camera";
 let hardwareScanTimer = null;
+let currentFactory = "";
 
 const hasSupabaseConfig =
   SUPABASE_URL !== "YOUR_SUPABASE_URL" &&
@@ -57,15 +92,22 @@ initializeSelect(aisleSelect, 20, { padStart: 2, placeholder: "請選擇走道�
 initializeSelect(levelSelect, 3, { placeholder: "請選擇樓層" });
 initializeSelect(positionSelect, 3, { placeholder: "請選擇版位" });
 restoreLastLocation();
+showFactorySelection();
 ensureDefaultBucketCount();
 updateLocationCode();
 setScanSource("camera");
 updateComputedQuantity();
 
+factoryChoiceButtons.forEach((button) => {
+  button.addEventListener("click", () => setFactory(button.dataset.factory));
+});
+changeFactoryButton.addEventListener("click", showFactorySelection);
 tempZoneSelect.addEventListener("change", handleLocationChange);
 aisleSelect.addEventListener("change", handleLocationChange);
 levelSelect.addEventListener("change", handleLocationChange);
 positionSelect.addEventListener("change", handleLocationChange);
+maskCategorySelect.addEventListener("change", handleMaskCategoryChange);
+maskItemSelect.addEventListener("change", applySelectedMaskRule);
 form.addEventListener("submit", handleSubmit);
 weightPerBucketInput.addEventListener("input", updateComputedQuantity);
 bucketCountInput.addEventListener("input", updateComputedQuantity);
@@ -75,6 +117,39 @@ cameraModeButton.addEventListener("click", () => setScanSource("camera"));
 hardwareModeButton.addEventListener("click", () => setScanSource("hardware"));
 hardwareScanInput.addEventListener("keydown", handleHardwareScanKeydown);
 hardwareScanInput.addEventListener("input", handleHardwareScanInput);
+
+function setFactory(factory) {
+  if (!FACTORIES[factory]) {
+    return;
+  }
+
+  currentFactory = factory;
+  activeFactoryLabel.textContent = FACTORIES[factory];
+  factorySelection.hidden = true;
+  inventoryCard.hidden = false;
+  document.body.classList.toggle("factory-mask", factory === "mask");
+  document.body.classList.toggle("factory-food", factory === "food");
+  maskRulePanel.hidden = factory !== "mask";
+
+  if (factory === "mask") {
+    handleMaskCategoryChange();
+  } else {
+    maskCategorySelect.value = "";
+    maskItemSelect.innerHTML = '<option value="">請先選擇分類</option>';
+    maskRuleNote.textContent = "選擇分類與項目後，系統會依面膜廠規則帶入溫層、走道與樓層。";
+    resetLocationSelectRanges();
+  }
+
+  updateLocationCode();
+}
+
+function showFactorySelection() {
+  currentFactory = "";
+  factorySelection.hidden = false;
+  inventoryCard.hidden = true;
+  document.body.classList.remove("factory-mask", "factory-food");
+  stopScanner();
+}
 
 function restoreLastCreatedBy() {
   const lastCreatedBy = window.localStorage.getItem(LAST_CREATED_BY_KEY);
@@ -96,6 +171,96 @@ function initializeSelect(element, max, options = {}) {
     option.textContent = normalized;
     element.append(option);
   }
+}
+
+function resetLocationSelectRanges() {
+  const currentAisle = aisleSelect.value;
+  const currentLevel = levelSelect.value;
+  const currentPosition = positionSelect.value;
+  initializeSelect(aisleSelect, 20, { padStart: 2, placeholder: "請選擇走道位置" });
+  initializeSelect(levelSelect, 3, { placeholder: "請選擇樓層" });
+  initializeSelect(positionSelect, 3, { placeholder: "請選擇版位" });
+  aisleSelect.value = currentAisle;
+  levelSelect.value = currentLevel;
+  positionSelect.value = currentPosition;
+}
+
+function handleMaskCategoryChange() {
+  const category = maskCategorySelect.value;
+  const rules = MASK_FACTORY_RULES.filter((rule) => rule.category === category);
+
+  maskItemSelect.innerHTML = "";
+
+  if (!rules.length) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "請先選擇分類";
+    maskItemSelect.append(option);
+    maskRuleNote.textContent = "選擇分類與項目後，系統會依面膜廠規則帶入溫層、走道與樓層。";
+    resetLocationSelectRanges();
+    updateLocationCode();
+    return;
+  }
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "請選擇項目";
+  maskItemSelect.append(placeholder);
+
+  rules.forEach((rule) => {
+    const option = document.createElement("option");
+    option.value = getMaskRuleValue(rule);
+    option.textContent = formatMaskRange(rule);
+    maskItemSelect.append(option);
+  });
+
+  maskRuleNote.textContent = "請選擇面膜項目，以套用對應儲位。";
+  resetLocationSelectRanges();
+  updateLocationCode();
+}
+
+function applySelectedMaskRule() {
+  const rule = MASK_FACTORY_RULES.find((item) => getMaskRuleValue(item) === maskItemSelect.value);
+
+  if (!rule) {
+    resetLocationSelectRanges();
+    maskRuleNote.textContent = "請選擇面膜項目，以套用對應儲位。";
+    updateLocationCode();
+    return;
+  }
+
+  const tempZone = TEMP_ZONE_BY_LABEL[rule.temp];
+  tempZoneSelect.value = tempZone || "";
+  setSelectOptions(aisleSelect, [rule.aisle], "請選擇走道位置");
+  initializeSelect(levelSelect, rule.levels, { placeholder: "請選擇樓層" });
+  initializeSelect(positionSelect, 3, { placeholder: "請選擇版位" });
+  aisleSelect.value = rule.aisle;
+  levelSelect.value = "";
+  positionSelect.value = "";
+  maskRuleNote.textContent = `${rule.category} ${formatMaskRange(rule)}：${rule.temp}、${Number(rule.aisle)}道、共${rule.levels}樓。`;
+  updateLocationCode();
+}
+
+function setSelectOptions(element, values, placeholder) {
+  element.innerHTML = `<option value="">${placeholder}</option>`;
+
+  values.forEach((value) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value;
+    element.append(option);
+  });
+}
+
+function getMaskRuleValue(rule) {
+  return `${rule.category}-${rule.start}-${rule.end}`;
+}
+
+function formatMaskRange(rule) {
+  const start = String(rule.start).padStart(2, "0");
+  const end = String(rule.end).padStart(2, "0");
+
+  return rule.start === rule.end ? start : `${start} ~ ${end}`;
 }
 
 function handleLocationChange() {
@@ -498,6 +663,11 @@ async function handleSubmit(event) {
     return;
   }
 
+  if (currentFactory === "mask" && (!maskCategorySelect.value || !maskItemSelect.value)) {
+    setMessage("請先選擇面膜分類與項目，系統會依規則帶入面膜廠儲位。", "error");
+    return;
+  }
+
   const locationCode = `${tempZone}-${aisle}-${level}-${position}`;
   const payload = {
     item_code: itemCode,
@@ -541,6 +711,9 @@ async function handleSubmit(event) {
   scanDuplicateWarning.hidden = true;
   clearHardwareScanBuffer();
   updateComputedQuantity();
+  if (currentFactory === "mask") {
+    handleMaskCategoryChange();
+  }
   updateLocationCode();
 
   if (currentScanSource === "hardware") {

@@ -11,7 +11,33 @@
 </head>
 <body>
   <main class="page-shell">
-    <section class="form-card">
+    <section id="factory-selection" class="factory-selection">
+      <div class="factory-selection-header">
+        <p class="section-kicker">Factory</p>
+        <h1>選擇廠別</h1>
+      </div>
+
+      <div class="factory-choice-grid" aria-label="選擇廠別">
+        <button class="factory-choice-button" type="button" data-factory="food">
+          <span>食品廠</span>
+          <strong>使用原本儲位規則</strong>
+        </button>
+        <button class="factory-choice-button" type="button" data-factory="mask">
+          <span>面膜廠</span>
+          <strong>依分類與項目自動帶入規則</strong>
+        </button>
+      </div>
+    </section>
+
+    <section id="inventory-card" class="form-card" hidden>
+      <div class="factory-active-bar">
+        <div>
+          <span>目前廠別</span>
+          <strong id="activeFactoryLabel">-</strong>
+        </div>
+        <button id="changeFactoryButton" class="ghost-button compact-button" type="button">切換</button>
+      </div>
+
       <div class="scanner-panel">
         <div class="panel-title-row">
           <div>
@@ -122,6 +148,33 @@
           </div>
 
           <p id="last-location-note" class="last-location-note" hidden></p>
+
+          <div id="mask-rule-panel" class="mask-rule-panel" hidden>
+            <div class="inline-field-pair">
+              <label class="field">
+                <span>面膜分類</span>
+                <select id="maskCategory">
+                  <option value="">請選擇分類</option>
+                  <option value="A">A</option>
+                  <option value="B">B</option>
+                  <option value="C">C</option>
+                  <option value="D">D</option>
+                  <option value="E">E</option>
+                  <option value="F">F</option>
+                  <option value="G">G</option>
+                  <option value="H">H</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>面膜項目</span>
+                <select id="maskItem">
+                  <option value="">請先選擇分類</option>
+                </select>
+              </label>
+            </div>
+            <p id="maskRuleNote" class="mask-rule-note">選擇分類與項目後，系統會依面膜廠規則帶入溫層、走道與樓層。</p>
+          </div>
 
           <div class="select-grid">
             <label class="field">
