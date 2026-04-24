@@ -136,7 +136,7 @@ function setFactory(factory) {
   } else {
     maskCategorySelect.value = "";
     maskItemSelect.innerHTML = '<option value="">請先選擇分類</option>';
-    maskRuleNote.textContent = "選擇分類與項目後，系統會依面膜廠規則帶入溫層、走道與樓層。";
+    maskRuleNote.textContent = "選擇分類與位置後，系統會依面膜廠規則帶入溫層、走道與樓層。";
     resetLocationSelectRanges();
   }
 
@@ -196,7 +196,7 @@ function handleMaskCategoryChange() {
     option.value = "";
     option.textContent = "請先選擇分類";
     maskItemSelect.append(option);
-    maskRuleNote.textContent = "選擇分類與項目後，系統會依面膜廠規則帶入溫層、走道與樓層。";
+    maskRuleNote.textContent = "選擇分類與位置後，系統會依面膜廠規則帶入溫層、走道與樓層。";
     resetLocationSelectRanges();
     updateLocationCode();
     return;
@@ -208,23 +208,26 @@ function handleMaskCategoryChange() {
   maskItemSelect.append(placeholder);
 
   rules.forEach((rule) => {
-    const option = document.createElement("option");
-    option.value = getMaskRuleValue(rule);
-    option.textContent = formatMaskRange(rule);
-    maskItemSelect.append(option);
+    for (let item = rule.start; item <= rule.end; item += 1) {
+      const itemCode = formatMaskItem(item);
+      const option = document.createElement("option");
+      option.value = itemCode;
+      option.textContent = itemCode;
+      maskItemSelect.append(option);
+    }
   });
 
-  maskRuleNote.textContent = "請選擇面膜項目，以套用對應儲位。";
+  maskRuleNote.textContent = "請選擇面膜位置，以套用對應儲位。";
   resetLocationSelectRanges();
   updateLocationCode();
 }
 
 function applySelectedMaskRule() {
-  const rule = MASK_FACTORY_RULES.find((item) => getMaskRuleValue(item) === maskItemSelect.value);
+  const rule = getSelectedMaskRule();
 
   if (!rule) {
     resetLocationSelectRanges();
-    maskRuleNote.textContent = "請選擇面膜項目，以套用對應儲位。";
+    maskRuleNote.textContent = "請選擇面膜位置，以套用對應儲位。";
     updateLocationCode();
     return;
   }
@@ -232,12 +235,12 @@ function applySelectedMaskRule() {
   const tempZone = TEMP_ZONE_BY_LABEL[rule.temp];
   tempZoneSelect.value = tempZone || "";
   setSelectOptions(aisleSelect, [rule.aisle], "請選擇走道位置");
-  initializeSelect(levelSelect, rule.levels, { placeholder: "請選擇樓層" });
+  initializeSelect(levelSelect, rule.levels, { padStart: 2, placeholder: "請選擇樓層" });
   initializeSelect(positionSelect, 3, { placeholder: "請選擇版位" });
   aisleSelect.value = rule.aisle;
   levelSelect.value = "";
   positionSelect.value = "";
-  maskRuleNote.textContent = `${rule.category} ${formatMaskRange(rule)}：${rule.temp}、${Number(rule.aisle)}道、共${rule.levels}樓。`;
+  maskRuleNote.textContent = `${rule.category}-${maskItemSelect.value}：${rule.temp}、${Number(rule.aisle)}道、可選 01 ~ ${formatMaskItem(rule.levels)} 樓。`;
   updateLocationCode();
 }
 
@@ -252,15 +255,21 @@ function setSelectOptions(element, values, placeholder) {
   });
 }
 
-function getMaskRuleValue(rule) {
-  return `${rule.category}-${rule.start}-${rule.end}`;
+function getSelectedMaskRule() {
+  const category = maskCategorySelect.value;
+  const item = Number(maskItemSelect.value);
+
+  if (!category || !Number.isInteger(item)) {
+    return null;
+  }
+
+  return MASK_FACTORY_RULES.find(
+    (rule) => rule.category === category && item >= rule.start && item <= rule.end
+  ) || null;
 }
 
-function formatMaskRange(rule) {
-  const start = String(rule.start).padStart(2, "0");
-  const end = String(rule.end).padStart(2, "0");
-
-  return rule.start === rule.end ? start : `${start} ~ ${end}`;
+function formatMaskItem(value) {
+  return String(value).padStart(2, "0");
 }
 
 function handleLocationChange() {
@@ -274,12 +283,22 @@ function updateLocationCode() {
   const level = levelSelect.value;
   const position = positionSelect.value;
 
-  const locationCode =
-    tempZone && aisle && level && position
-      ? `${tempZone}-${aisle}-${level}-${position}`
-      : "-";
+  locationCodeLabel.textContent = getLocationCode({ tempZone, aisle, level, position });
+}
 
-  locationCodeLabel.textContent = locationCode;
+function getLocationCode({ tempZone, aisle, level, position }) {
+  if (currentFactory === "mask") {
+    const category = maskCategorySelect.value;
+    const item = maskItemSelect.value;
+
+    return category && item && level && position
+      ? `${category}-${item}-${formatMaskItem(level)}-${position}`
+      : "-";
+  }
+
+  return tempZone && aisle && level && position
+    ? `${tempZone}-${aisle}-${level}-${position}`
+    : "-";
 }
 
 function persistCurrentLocation() {
@@ -668,7 +687,7 @@ async function handleSubmit(event) {
     return;
   }
 
-  const locationCode = `${tempZone}-${aisle}-${level}-${position}`;
+  const locationCode = getLocationCode({ tempZone, aisle, level, position });
   const payload = {
     item_code: itemCode,
     batch_no: batchNo,
