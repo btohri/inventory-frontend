@@ -142,15 +142,15 @@
     .edit-form {
       display: grid;
       grid-template-columns:
-        minmax(130px, 1fr)
-        minmax(140px, 1fr)
-        minmax(140px, 1fr)
-        minmax(130px, 1fr)
-        minmax(110px, 0.75fr)
-        minmax(120px, 0.8fr)
-        minmax(130px, 1fr)
-        minmax(260px, auto);
-      gap: 14px 16px;
+        minmax(96px, 1fr)
+        minmax(108px, 1.05fr)
+        minmax(108px, 1.05fr)
+        minmax(100px, 0.95fr)
+        minmax(74px, 0.68fr)
+        minmax(92px, 0.78fr)
+        minmax(104px, 0.95fr)
+        minmax(190px, auto);
+      gap: 10px 10px;
       width: 100%;
       max-width: 100%;
       padding: 12px 0 6px;
@@ -171,7 +171,7 @@
     .edit-form input {
       width: 100%;
       min-height: 44px;
-      padding: 10px 12px;
+      padding: 10px 10px;
       border: 1px solid rgba(24, 50, 41, 0.12);
       border-radius: 12px;
       background: rgba(255, 255, 255, 0.92);
@@ -180,14 +180,16 @@
     }
     .edit-actions {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       justify-content: flex-start;
       align-items: center;
       white-space: nowrap;
     }
     .edit-actions button {
-      min-width: 120px;
+      min-width: 90px;
       width: auto;
+      padding-left: 12px;
+      padding-right: 12px;
     }
     @media (max-width: 1100px) {
       .page-shell {

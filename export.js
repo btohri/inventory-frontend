@@ -294,7 +294,7 @@ async function handleEditSubmit(event) {
   }
 
   if (!locationParts) {
-    setMessage("儲位格式錯誤，請使用 溫層-走道-樓層-版位，例如 F-01-1-1。", "error");
+    setMessage("儲位格式錯誤，食品廠請用 F-01-1-1，面膜廠請用 A01-02-3。", "error");
     return;
   }
 
@@ -427,6 +427,19 @@ function formatFileTimestamp(date) {
 }
 
 function parseLocationCode(locationCode) {
+  const maskMatch = locationCode.match(/^([A-Ha-h])(\d{2})-(\d+)-(\d+)$/);
+
+  if (maskMatch) {
+    const category = maskMatch[1].toUpperCase();
+
+    return {
+      tempZone: category === "B" || category === "G" ? "F" : "G",
+      aisle: Number(maskMatch[2]),
+      level: Number(maskMatch[3]),
+      position: Number(maskMatch[4]),
+    };
+  }
+
   const match = locationCode.match(/^([A-Za-z]+)-(\d+)-(\d+)-(\d+)$/);
 
   if (!match) {
