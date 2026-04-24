@@ -7,6 +7,8 @@ const messageBox = document.querySelector("#export-message");
 const resultMeta = document.querySelector("#result-meta");
 const previewWrap = document.querySelector("#preview-wrap");
 const previewBody = document.querySelector("#preview-body");
+const RECORD_SELECT_COLUMNS =
+  "id, created_at, factory_type, created_by, item_code, batch_no, weight_per_bucket, bucket_count, quantity, temp_zone, aisle, level, position, location_code, input_method";
 
 const hasSupabaseConfig =
   SUPABASE_URL !== "YOUR_SUPABASE_URL" &&
@@ -36,7 +38,8 @@ function getFilters() {
   const dateTo = document.querySelector("#filterDateTo").value;
   const person = document.querySelector("#filterPerson").value.trim();
   const itemCode = document.querySelector("#filterItemCode").value.trim();
-  return { dateFrom, dateTo, person, itemCode };
+  const factoryType = document.querySelector("#filterFactoryType").value;
+  return { dateFrom, dateTo, person, itemCode, factoryType };
 }
 
 async function runQuery() {
@@ -52,11 +55,11 @@ async function runQuery() {
   resultMeta.hidden = true;
   queryResults = [];
 
-  const { dateFrom, dateTo, person, itemCode } = getFilters();
+  const { dateFrom, dateTo, person, itemCode, factoryType } = getFilters();
 
   let query = supabase
     .from("inventory_records")
-    .select("id, created_at, created_by, item_code, batch_no, weight_per_bucket, bucket_count, quantity, temp_zone, aisle, level, position, location_code, input_method")
+    .select(RECORD_SELECT_COLUMNS)
     .order("created_at", { ascending: false });
 
   if (dateFrom) {
@@ -70,6 +73,9 @@ async function runQuery() {
   }
   if (itemCode) {
     query = query.ilike("item_code", `%${itemCode}%`);
+  }
+  if (factoryType) {
+    query = query.eq("factory_type", factoryType);
   }
 
   const { data, error } = await query;
@@ -112,6 +118,7 @@ function renderPreview(rows) {
     tr.dataset.recordId = row.id ?? "";
     tr.innerHTML = `
       <td>${row.created_at ? formatDateTime(row.created_at) : ""}</td>
+      <td>${esc(row.factory_type)}</td>
       <td>${esc(row.created_by)}</td>
       <td>${esc(row.item_code)}</td>
       <td>${esc(row.batch_no)}</td>
@@ -140,7 +147,7 @@ function buildEditRow(row) {
   const tr = document.createElement("tr");
   tr.className = "edit-row";
   tr.innerHTML = `
-    <td colspan="10">
+    <td colspan="11">
       <form class="edit-form" data-id="${escAttr(row.id ?? "")}">
         <label>
           建立人員
@@ -311,7 +318,7 @@ async function handleEditSubmit(event) {
       location_code: locationCode,
     })
     .eq("id", id)
-    .select("id, created_at, created_by, item_code, batch_no, weight_per_bucket, bucket_count, quantity, temp_zone, aisle, level, position, location_code, input_method")
+    .select(RECORD_SELECT_COLUMNS)
     .single();
 
   if (submit) submit.disabled = false;
@@ -364,6 +371,7 @@ async function exportExcel() {
 
   const rows = queryResults.map((row) => ({
     時間: row.created_at ? formatDateTime(row.created_at) : "",
+    廠別: row.factory_type ?? "",
     建立人員: row.created_by ?? "",
     料號: row.item_code ?? "",
     批次: row.batch_no ?? "",
@@ -378,6 +386,7 @@ async function exportExcel() {
   const worksheet = window.XLSX.utils.json_to_sheet(rows);
   worksheet["!cols"] = [
     { wch: 22 },
+    { wch: 12 },
     { wch: 14 },
     { wch: 20 },
     { wch: 20 },
