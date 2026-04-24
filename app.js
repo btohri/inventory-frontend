@@ -14,21 +14,21 @@ const TEMP_ZONE_BY_LABEL = {
   "常溫": "G",
 };
 const MASK_FACTORY_RULES = [
-  { category: "A", start: 1, end: 10, aisle: "03", levels: 3, temp: "常溫" },
-  { category: "A", start: 11, end: 26, aisle: "01", levels: 3, temp: "常溫" },
-  { category: "A", start: 27, end: 32, aisle: "03", levels: 3, temp: "常溫" },
-  { category: "A", start: 33, end: 33, aisle: "01", levels: 2, temp: "常溫" },
-  { category: "B", start: 1, end: 14, aisle: "02", levels: 3, temp: "冷藏" },
-  { category: "B", start: 15, end: 16, aisle: "01", levels: 3, temp: "冷藏" },
-  { category: "C", start: 1, end: 2, aisle: "03", levels: 3, temp: "常溫" },
-  { category: "C", start: 3, end: 8, aisle: "01", levels: 2, temp: "常溫" },
-  { category: "E", start: 1, end: 50, aisle: "01", levels: 3, temp: "常溫" },
-  { category: "D", start: 1, end: 18, aisle: "03", levels: 3, temp: "常溫" },
-  { category: "D", start: 19, end: 36, aisle: "02", levels: 3, temp: "常溫" },
-  { category: "D", start: 37, end: 58, aisle: "03", levels: 3, temp: "常溫" },
-  { category: "G", start: 1, end: 2, aisle: "02", levels: 3, temp: "冷藏" },
-  { category: "H", start: 1, end: 3, aisle: "01", levels: 2, temp: "常溫" },
-  { category: "F", start: 1, end: 2, aisle: "03", levels: 3, temp: "常溫" },
+  { category: "A", start: 1, end: 10, versions: 3, levels: 3, temp: "常溫" },
+  { category: "A", start: 11, end: 26, versions: 1, levels: 3, temp: "常溫" },
+  { category: "A", start: 27, end: 32, versions: 3, levels: 3, temp: "常溫" },
+  { category: "A", start: 33, end: 33, versions: 1, levels: 2, temp: "常溫" },
+  { category: "B", start: 1, end: 14, versions: 2, levels: 3, temp: "冷藏" },
+  { category: "B", start: 15, end: 16, versions: 1, levels: 3, temp: "冷藏" },
+  { category: "C", start: 1, end: 2, versions: 3, levels: 3, temp: "常溫" },
+  { category: "C", start: 3, end: 8, versions: 1, levels: 2, temp: "常溫" },
+  { category: "E", start: 1, end: 50, versions: 1, levels: 3, temp: "常溫" },
+  { category: "D", start: 1, end: 18, versions: 3, levels: 3, temp: "常溫" },
+  { category: "D", start: 19, end: 36, versions: 2, levels: 3, temp: "常溫" },
+  { category: "D", start: 37, end: 58, versions: 3, levels: 3, temp: "常溫" },
+  { category: "G", start: 1, end: 2, versions: 2, levels: 3, temp: "冷藏" },
+  { category: "H", start: 1, end: 3, versions: 1, levels: 2, temp: "常溫" },
+  { category: "F", start: 1, end: 2, versions: 3, levels: 3, temp: "常溫" },
 ];
 
 const factorySelection = document.querySelector("#factory-selection");
@@ -69,8 +69,6 @@ const aisleSelect = document.querySelector("#aisle");
 const levelSelect = document.querySelector("#level");
 const positionSelect = document.querySelector("#position");
 const maskRulePanel = document.querySelector("#mask-rule-panel");
-const maskCategorySelect = document.querySelector("#maskCategory");
-const maskItemSelect = document.querySelector("#maskItem");
 const maskRuleNote = document.querySelector("#maskRuleNote");
 
 let html5QrCode = null;
@@ -103,11 +101,9 @@ factoryChoiceButtons.forEach((button) => {
 });
 changeFactoryButton.addEventListener("click", showFactorySelection);
 tempZoneSelect.addEventListener("change", handleLocationChange);
-aisleSelect.addEventListener("change", handleLocationChange);
+aisleSelect.addEventListener("change", handleAisleChange);
 levelSelect.addEventListener("change", handleLocationChange);
 positionSelect.addEventListener("change", handleLocationChange);
-maskCategorySelect.addEventListener("change", handleMaskCategoryChange);
-maskItemSelect.addEventListener("change", applySelectedMaskRule);
 form.addEventListener("submit", handleSubmit);
 weightPerBucketInput.addEventListener("input", updateComputedQuantity);
 bucketCountInput.addEventListener("input", updateComputedQuantity);
@@ -132,11 +128,9 @@ function setFactory(factory) {
   maskRulePanel.hidden = factory !== "mask";
 
   if (factory === "mask") {
-    handleMaskCategoryChange();
+    setupMaskLocationSelects();
   } else {
-    maskCategorySelect.value = "";
-    maskItemSelect.innerHTML = '<option value="">請先選擇分類</option>';
-    maskRuleNote.textContent = "選擇分類與位置後，系統會依面膜廠規則帶入溫層、走道與樓層。";
+    resetTempZoneOptions();
     resetLocationSelectRanges();
   }
 
@@ -174,98 +168,122 @@ function initializeSelect(element, max, options = {}) {
 }
 
 function resetLocationSelectRanges() {
-  const currentAisle = aisleSelect.value;
-  const currentLevel = levelSelect.value;
-  const currentPosition = positionSelect.value;
   initializeSelect(aisleSelect, 20, { padStart: 2, placeholder: "請選擇走道位置" });
   initializeSelect(levelSelect, 3, { placeholder: "請選擇樓層" });
   initializeSelect(positionSelect, 3, { placeholder: "請選擇版位" });
-  aisleSelect.value = currentAisle;
-  levelSelect.value = currentLevel;
-  positionSelect.value = currentPosition;
 }
 
-function handleMaskCategoryChange() {
-  const category = maskCategorySelect.value;
-  const rules = MASK_FACTORY_RULES.filter((rule) => rule.category === category);
-
-  maskItemSelect.innerHTML = "";
-
-  if (!rules.length) {
-    const option = document.createElement("option");
-    option.value = "";
-    option.textContent = "請先選擇分類";
-    maskItemSelect.append(option);
-    maskRuleNote.textContent = "選擇分類與位置後，系統會依面膜廠規則帶入溫層、走道與樓層。";
-    resetLocationSelectRanges();
-    updateLocationCode();
-    return;
-  }
-
-  const placeholder = document.createElement("option");
-  placeholder.value = "";
-  placeholder.textContent = "請選擇項目";
-  maskItemSelect.append(placeholder);
-
-  rules.forEach((rule) => {
-    for (let item = rule.start; item <= rule.end; item += 1) {
-      const itemCode = formatMaskItem(item);
-      const option = document.createElement("option");
-      option.value = itemCode;
-      option.textContent = itemCode;
-      maskItemSelect.append(option);
-    }
-  });
-
-  maskRuleNote.textContent = "請選擇面膜位置，以套用對應儲位。";
-  resetLocationSelectRanges();
-  updateLocationCode();
+function resetTempZoneOptions() {
+  setSelectOptions(
+    tempZoneSelect,
+    [
+      { value: "F", label: "F 冷藏" },
+      { value: "G", label: "G 常溫" },
+    ],
+    "請選擇溫層"
+  );
 }
 
-function applySelectedMaskRule() {
-  const rule = getSelectedMaskRule();
-
-  if (!rule) {
-    resetLocationSelectRanges();
-    maskRuleNote.textContent = "請選擇面膜位置，以套用對應儲位。";
-    updateLocationCode();
-    return;
-  }
-
-  const tempZone = TEMP_ZONE_BY_LABEL[rule.temp];
-  tempZoneSelect.value = tempZone || "";
-  setSelectOptions(aisleSelect, [rule.aisle], "請選擇走道位置");
-  initializeSelect(levelSelect, rule.levels, { padStart: 2, placeholder: "請選擇樓層" });
+function setupMaskLocationSelects() {
+  const currentAisle = aisleSelect.value;
+  resetTempZoneOptions();
+  setSelectOptions(aisleSelect, getMaskLocationOptions(), "請選擇走道位置");
+  initializeSelect(levelSelect, 3, { padStart: 2, placeholder: "請選擇樓層" });
   initializeSelect(positionSelect, 3, { placeholder: "請選擇版位" });
-  aisleSelect.value = rule.aisle;
+  aisleSelect.value = getMaskLocationRule(currentAisle) ? currentAisle : "";
   levelSelect.value = "";
   positionSelect.value = "";
-  maskRuleNote.textContent = `${rule.category}-${maskItemSelect.value}：${rule.temp}、${Number(rule.aisle)}道、可選 01 ~ ${formatMaskItem(rule.levels)} 樓。`;
-  updateLocationCode();
+  applySelectedMaskLocationRule();
 }
 
-function setSelectOptions(element, values, placeholder) {
+function handleAisleChange() {
+  if (currentFactory === "mask") {
+    applySelectedMaskLocationRule();
+    return;
+  }
+
+  handleLocationChange();
+}
+
+function applySelectedMaskLocationRule() {
+  const rule = getMaskLocationRule(aisleSelect.value);
+
+  if (!rule) {
+    resetTempZoneOptions();
+    initializeSelect(levelSelect, 3, { padStart: 2, placeholder: "請選擇樓層" });
+    initializeSelect(positionSelect, 3, { placeholder: "請選擇版位" });
+    maskRuleNote.textContent = "請先選擇面膜走道位置，系統會依規則限制樓層與版位。";
+    updateLocationCode();
+    return;
+  }
+
+  const previousLevel = levelSelect.value;
+  const previousPosition = positionSelect.value;
+  const tempZone = TEMP_ZONE_BY_LABEL[rule.temp];
+  setSelectOptions(
+    tempZoneSelect,
+    tempZone ? [{ value: tempZone, label: `${tempZone} ${rule.temp}` }] : [],
+    "請選擇溫層"
+  );
+  tempZoneSelect.value = tempZone || "";
+  initializeSelect(levelSelect, rule.levels, { padStart: 2, placeholder: "請選擇樓層" });
+  initializeSelect(positionSelect, rule.versions, { placeholder: "請選擇版位" });
+  levelSelect.value = Number(previousLevel) <= rule.levels ? previousLevel : "";
+  positionSelect.value = Number(previousPosition) <= rule.versions ? previousPosition : "";
+  maskRuleNote.textContent = `${aisleSelect.value}：${rule.temp}，最高 ${formatMaskItem(rule.levels)} 樓，${rule.versions} 版。`;
+  handleLocationChange();
+}
+
+function setSelectOptions(element, options, placeholder) {
   element.innerHTML = `<option value="">${placeholder}</option>`;
 
-  values.forEach((value) => {
+  options.forEach((item) => {
     const option = document.createElement("option");
-    option.value = value;
-    option.textContent = value;
+    option.value = typeof item === "string" ? item : item.value;
+    option.textContent = typeof item === "string" ? item : item.label;
     element.append(option);
   });
 }
 
-function getSelectedMaskRule() {
-  const category = maskCategorySelect.value;
-  const item = Number(maskItemSelect.value);
+function getMaskLocationOptions() {
+  return MASK_FACTORY_RULES.flatMap((rule) => {
+    const options = [];
 
-  if (!category || !Number.isInteger(item)) {
+    for (let item = rule.start; item <= rule.end; item += 1) {
+      const code = `${rule.category}${formatMaskItem(item)}`;
+      options.push({ value: code, label: code });
+    }
+
+    return options;
+  });
+}
+
+function getMaskLocationRule(location) {
+  const parsed = parseMaskLocation(location);
+
+  if (!parsed) {
     return null;
   }
 
   return MASK_FACTORY_RULES.find(
-    (rule) => rule.category === category && item >= rule.start && item <= rule.end
+    (rule) =>
+      rule.category === parsed.category &&
+      parsed.item >= rule.start &&
+      parsed.item <= rule.end
   ) || null;
+}
+
+function parseMaskLocation(location) {
+  const match = String(location || "").match(/^([A-Z])(\d{2})$/);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    category: match[1],
+    item: Number(match[2]),
+  };
 }
 
 function formatMaskItem(value) {
@@ -288,11 +306,8 @@ function updateLocationCode() {
 
 function getLocationCode({ tempZone, aisle, level, position }) {
   if (currentFactory === "mask") {
-    const category = maskCategorySelect.value;
-    const item = maskItemSelect.value;
-
-    return category && item && level && position
-      ? `${category}-${item}-${formatMaskItem(level)}-${position}`
+    return aisle && level && position
+      ? `${aisle}-${formatMaskItem(level)}-${position}`
       : "-";
   }
 
@@ -651,7 +666,7 @@ async function handleSubmit(event) {
   const weightPerBucket = Number(formData.get("weightPerBucket"));
   const bucketCount = Number(formData.get("bucketCount"));
   const quantity = Number(formData.get("quantity"));
-  const tempZone = formData.get("tempZone")?.toString();
+  let tempZone = formData.get("tempZone")?.toString();
   const aisle = formData.get("aisle")?.toString();
   const level = formData.get("level")?.toString();
   const position = formData.get("position")?.toString();
@@ -682,12 +697,24 @@ async function handleSubmit(event) {
     return;
   }
 
-  if (currentFactory === "mask" && (!maskCategorySelect.value || !maskItemSelect.value)) {
-    setMessage("請先選擇面膜分類與項目，系統會依規則帶入面膜廠儲位。", "error");
-    return;
+  const maskLocationRule = currentFactory === "mask" ? getMaskLocationRule(aisle) : null;
+
+  if (currentFactory === "mask") {
+    if (!maskLocationRule) {
+      setMessage("請先選擇正確的面膜走道位置。", "error");
+      return;
+    }
+
+    if (Number(level) > maskLocationRule.levels || Number(position) > maskLocationRule.versions) {
+      setMessage("樓層或版位超出此面膜位置可用範圍。", "error");
+      return;
+    }
+
+    tempZone = TEMP_ZONE_BY_LABEL[maskLocationRule.temp] || tempZone;
   }
 
   const locationCode = getLocationCode({ tempZone, aisle, level, position });
+  const parsedMaskLocation = currentFactory === "mask" ? parseMaskLocation(aisle) : null;
   const payload = {
     item_code: itemCode,
     batch_no: batchNo,
@@ -695,7 +722,7 @@ async function handleSubmit(event) {
     bucket_count: bucketCount,
     quantity,
     temp_zone: tempZone,
-    aisle: Number(aisle),
+    aisle: parsedMaskLocation ? parsedMaskLocation.item : Number(aisle),
     level: Number(level),
     position: Number(position),
     location_code: locationCode,
@@ -731,7 +758,7 @@ async function handleSubmit(event) {
   clearHardwareScanBuffer();
   updateComputedQuantity();
   if (currentFactory === "mask") {
-    handleMaskCategoryChange();
+    setupMaskLocationSelects();
   }
   updateLocationCode();
 
