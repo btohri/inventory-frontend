@@ -231,7 +231,7 @@ function applySelectedMaskLocationRule() {
     resetTempZoneOptions();
     initializeSelect(levelSelect, 3, { padStart: 2, placeholder: "請選擇樓層" });
     initializeSelect(positionSelect, 3, { placeholder: "請選擇版位" });
-    maskRuleNote.textContent = "請先掃面膜儲位編號，再掃原物料 QR。";
+    maskRuleNote.textContent = "請先掃面膜儲位條碼，再掃原物料 QR。";
     updateLocationCode();
     return;
   }
@@ -534,7 +534,7 @@ function setScanSource(source) {
   if (isCamera) {
     setScannerStatus(
       currentFactory === "mask"
-        ? "按下開始掃描後，請先掃面膜儲位編號，再掃原物料 QR。"
+        ? "按下開始掃描後，請先掃面膜儲位條碼，再掃原物料 QR。"
         : "按下開始掃描後，允許相機權限即可使用。"
     );
     clearHardwareScanBuffer();
@@ -542,7 +542,7 @@ function setScanSource(source) {
     stopScanner();
     setScannerStatus(
       currentFactory === "mask"
-        ? "已切換為平板掃描槍模式，請先掃面膜儲位編號，再掃原物料 QR。"
+        ? "已切換為平板掃描槍模式，請先掃面膜儲位條碼，再掃原物料 QR。"
         : "已切換為平板掃描槍模式。"
     );
     window.setTimeout(() => hardwareScanInput.focus(), 0);
@@ -575,7 +575,11 @@ async function startScanner() {
     }
 
     setScanningState(true);
-    setScannerStatus("相機啟動中，請將 QR Code 對準畫面。");
+    setScannerStatus(
+      currentFactory === "mask"
+        ? "相機啟動中，請先對準面膜儲位條碼，再掃原物料 QR。"
+        : "相機啟動中，請將 QR Code 對準畫面。"
+    );
 
     await startQrReaderWithFallback();
     zoomPreviewVideo();
@@ -682,7 +686,7 @@ async function applyScannedPayload(rawText, source) {
       inputMethodInput.value = "manual";
       rawQrInput.value = "";
       applyScannedMaskLocation(scannedLocation);
-      setScannerStatus("已掃到面膜儲位，請再掃原物料 QR。", "success");
+      setScannerStatus("已掃到面膜儲位條碼，請再掃原物料 QR。", "success");
       setMessage(`已帶入儲位 ${scannedLocation.locationCode}，請再掃原物料 QR。`, "success");
       return;
     }
@@ -690,8 +694,8 @@ async function applyScannedPayload(rawText, source) {
     if (!scannedMaskLocationCode) {
       inputMethodInput.value = "manual";
       rawQrInput.value = "";
-      setScannerStatus("請先掃面膜儲位編號，再掃原物料 QR。", "error");
-      setMessage("面膜廠請先掃儲位編號，例如 A27 01 1 或 D01033。", "error");
+      setScannerStatus("請先掃面膜儲位條碼，再掃原物料 QR。", "error");
+      setMessage("面膜廠請先掃儲位條碼，例如 A18012、A3301 或 D01033。", "error");
       return;
     }
   }
@@ -753,7 +757,7 @@ async function tryAutoSubmitFromScan() {
 
 function getAutoSubmitValidationError() {
   if (currentFactory === "mask" && !scannedMaskLocationCode) {
-    return "請先掃儲位編號。";
+    return "請先掃儲位條碼。";
   }
 
   const createdBy = createdByInput.value.trim();
@@ -956,7 +960,7 @@ async function handleSubmit(event) {
     clearMaskLocationState();
     setupMaskLocationSelects();
     updateLastLocationNote(null);
-    maskRuleNote.textContent = "請先掃面膜儲位編號，再掃原物料 QR。";
+    maskRuleNote.textContent = "請先掃面膜儲位條碼，再掃原物料 QR。";
   } else {
     restoreLastLocation();
   }
@@ -968,7 +972,7 @@ async function handleSubmit(event) {
   } else {
     setScannerStatus(
       currentFactory === "mask"
-        ? "按下開始掃描後，請先掃面膜儲位編號，再掃原物料 QR。"
+        ? "按下開始掃描後，請先掃面膜儲位條碼，再掃原物料 QR。"
         : "按下開始掃描後，允許相機權限即可使用。"
     );
   }
@@ -977,6 +981,22 @@ async function handleSubmit(event) {
 }
 
 function getQrScannerConfig() {
+  const supportedFormats = window.Html5QrcodeSupportedFormats;
+  const formatsToSupport = supportedFormats
+    ? [
+        supportedFormats.QR_CODE,
+        supportedFormats.CODE_128,
+        supportedFormats.CODE_39,
+        supportedFormats.CODE_93,
+        supportedFormats.CODABAR,
+        supportedFormats.EAN_13,
+        supportedFormats.EAN_8,
+        supportedFormats.UPC_A,
+        supportedFormats.UPC_E,
+        supportedFormats.ITF,
+      ].filter(Boolean)
+    : undefined;
+
   return {
     fps: 20,
     aspectRatio: 1,
@@ -984,6 +1004,7 @@ function getQrScannerConfig() {
       const size = Math.min(w, h) * 0.9;
       return { width: size, height: size };
     },
+    formatsToSupport,
     experimentalFeatures: {
       useBarCodeDetectorIfSupported: true,
     },
