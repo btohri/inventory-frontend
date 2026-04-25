@@ -611,7 +611,15 @@ async function stopScanner() {
 }
 
 async function onScanSuccess(decodedText) {
-  await stopScanner();
+  const keepCameraRunningForMaskLocation =
+    currentFactory === "mask" &&
+    !scannedMaskLocationCode &&
+    Boolean(parseScannedMaskLocation(decodedText));
+
+  if (!keepCameraRunningForMaskLocation) {
+    await stopScanner();
+  }
+
   await applyScannedPayload(decodedText, "camera");
 }
 
@@ -638,7 +646,7 @@ function processHardwareScanInput() {
     return;
   }
 
-  if (!hasRequiredHardwareQrTags(rawText)) {
+  if (currentFactory !== "mask" && !hasRequiredHardwareQrTags(rawText)) {
     clearHardwareScanBuffer();
     scanDuplicateWarning.hidden = true;
     setScannerStatus("掃描槍格式錯誤，內容必須包含 T1 與 T2，請重新掃描。", "error");
