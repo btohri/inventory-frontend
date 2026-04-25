@@ -263,9 +263,13 @@ function getNormalizedMaskLocationCode({ aisle, level, position }) {
 }
 
 function parseScannedMaskLocation(rawText) {
-  const match = String(rawText || "")
-    .trim()
-    .match(/^([A-Ha-h])\s*(\d{1,2})(?:[\s-]+)(\d{1,2})(?:[\s-]+)(\d{1,2})$/);
+  const normalized = String(rawText || "").trim();
+  const segmentedMatch = normalized.match(
+    /^([A-Ha-h])\s*(\d{1,2})(?:[\s-]+)(\d{1,2})(?:[\s-]+)(\d{1,2})$/
+  );
+  const compactFiveDigitMatch = normalized.match(/^([A-Ha-h])(\d{2})(\d{2})(\d)$/);
+  const compactFourDigitMatch = normalized.match(/^([A-Ha-h])(\d{2})(\d)(\d)$/);
+  const match = segmentedMatch || compactFiveDigitMatch || compactFourDigitMatch;
 
   if (!match) {
     return null;
@@ -687,7 +691,7 @@ async function applyScannedPayload(rawText, source) {
       inputMethodInput.value = "manual";
       rawQrInput.value = "";
       setScannerStatus("請先掃面膜儲位編號，再掃原物料 QR。", "error");
-      setMessage("面膜廠請先掃儲位編號，例如 A27 01 1。", "error");
+      setMessage("面膜廠請先掃儲位編號，例如 A27 01 1 或 D01033。", "error");
       return;
     }
   }
