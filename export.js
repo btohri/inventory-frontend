@@ -9,6 +9,7 @@ const previewWrap = document.querySelector("#preview-wrap");
 const previewBody = document.querySelector("#preview-body");
 const RECORD_SELECT_COLUMNS =
   "id, created_at, factory_type, created_by, item_code, batch_no, weight_per_bucket, bucket_count, quantity, temp_zone, aisle, level, position, location_code, input_method";
+const QUERY_PAGE_SIZE = 50;
 
 const hasSupabaseConfig =
   SUPABASE_URL !== "YOUR_SUPABASE_URL" &&
@@ -20,6 +21,8 @@ const supabase = hasSupabaseConfig
 
 let queryResults = [];
 let editingRecordId = null;
+
+void loadCreatedByOptions();
 
 queryButton.addEventListener("click", runQuery);
 exportButton.addEventListener("click", exportExcel);
@@ -33,13 +36,45 @@ function setMessage(text, type = "") {
   if (type) messageBox.classList.add(type);
 }
 
+async function loadCreatedByOptions() {
+  if (!supabase) {
+    return;
+  }
+
+  const filterPerson = document.querySelector("#filterPerson");
+  const currentValue = filterPerson.value;
+  const { data, error } = await supabase
+    .from("inventory_records")
+    .select("created_by")
+    .not("created_by", "is", null)
+    .order("created_by", { ascending: true })
+    .limit(500);
+
+  if (error) {
+    return;
+  }
+
+  const names = [...new Set((data || []).map((row) => row.created_by?.trim()).filter(Boolean))];
+  filterPerson.innerHTML = '<option value="">全部</option>';
+
+  names.forEach((name) => {
+    const option = document.createElement("option");
+    option.value = name;
+    option.textContent = name;
+    filterPerson.append(option);
+  });
+
+  filterPerson.value = currentValue;
+}
+
 function getFilters() {
   const dateFrom = document.querySelector("#filterDateFrom").value;
   const dateTo = document.querySelector("#filterDateTo").value;
   const person = document.querySelector("#filterPerson").value.trim();
   const itemCode = document.querySelector("#filterItemCode").value.trim();
+  const batchNo = document.querySelector("#filterBatchNo").value.trim();
   const factoryType = document.querySelector("#filterFactoryType").value;
-  return { dateFrom, dateTo, person, itemCode, factoryType };
+  return { dateFrom, dateTo, person, itemCode, batchNo, factoryType };
 }
 
 async function runQuery() {
@@ -55,12 +90,13 @@ async function runQuery() {
   resultMeta.hidden = true;
   queryResults = [];
 
-  const { dateFrom, dateTo, person, itemCode, factoryType } = getFilters();
+  const { dateFrom, dateTo, person, itemCode, batchNo, factoryType } = getFilters();
 
   let query = supabase
     .from("inventory_records")
     .select(RECORD_SELECT_COLUMNS)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(QUERY_PAGE_SIZE);
 
   if (dateFrom) {
     query = query.gte("created_at", `${dateFrom}T00:00:00`);
@@ -73,6 +109,9 @@ async function runQuery() {
   }
   if (itemCode) {
     query = query.ilike("item_code", `%${itemCode}%`);
+  }
+  if (batchNo) {
+    query = query.ilike("batch_no", `%${batchNo}%`);
   }
   if (factoryType) {
     query = query.eq("factory_type", factoryType);
@@ -103,7 +142,10 @@ async function runQuery() {
 function renderPreview(rows) {
   previewBody.innerHTML = "";
 
-  resultMeta.textContent = `共 ${rows.length} 筆記錄`;
+  resultMeta.textContent =
+    rows.length >= QUERY_PAGE_SIZE
+      ? `顯示前 ${rows.length} 筆記錄（單頁最多 ${QUERY_PAGE_SIZE} 筆）`
+      : `共 ${rows.length} 筆記錄`;
   resultMeta.hidden = false;
 
   if (rows.length === 0) {
