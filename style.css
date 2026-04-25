@@ -260,6 +260,12 @@ body.scan-source-hardware .scan-actions {
   display: none;
 }
 
+body.factory-mask .scan-result,
+body.factory-mask .inventory-form .scan-hidden-field,
+body.factory-mask .inventory-form .scan-hidden-panel {
+  display: none;
+}
+
 .export-panel {
   margin-top: 18px;
 }

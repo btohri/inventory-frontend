@@ -77,6 +77,7 @@ let isScannerRunning = false;
 let currentScanSource = "camera";
 let hardwareScanTimer = null;
 let currentFactory = "";
+let scannedMaskLocationCode = "";
 
 const hasSupabaseConfig =
   SUPABASE_URL !== "YOUR_SUPABASE_URL" &&
@@ -96,6 +97,7 @@ ensureDefaultBucketCount();
 updateLocationCode();
 setScanSource("camera");
 updateComputedQuantity();
+updateSubmitButtonVisibility();
 
 factoryChoiceButtons.forEach((button) => {
   button.addEventListener("click", () => setFactory(button.dataset.factory));
@@ -122,6 +124,7 @@ function setFactory(factory) {
   }
 
   currentFactory = factory;
+  clearMaskLocationState();
   activeFactoryLabel.textContent = FACTORIES[factory];
   factorySelection.hidden = true;
   inventoryCard.hidden = false;
@@ -138,14 +141,17 @@ function setFactory(factory) {
   }
 
   updateLocationCode();
+  updateSubmitButtonVisibility();
 }
 
 function showFactorySelection() {
   currentFactory = "";
+  clearMaskLocationState();
   factorySelection.hidden = false;
   inventoryCard.hidden = true;
   document.body.classList.remove("factory-mask", "factory-food");
   stopScanner();
+  updateSubmitButtonVisibility();
 }
 
 function restoreLastCreatedBy() {
@@ -225,9 +231,7 @@ function applySelectedMaskLocationRule() {
     resetTempZoneOptions();
     initializeSelect(levelSelect, 3, { padStart: 2, placeholder: "請選擇樓層" });
     initializeSelect(positionSelect, 3, { placeholder: "請選擇版位" });
-    maskRuleNote.textContent = maskSeriesSelect.value
-      ? "請選擇面膜走道位置，系統會依規則限制樓層與版位。"
-      : "請先選擇面膜分類，再選擇走道位置。";
+    maskRuleNote.textContent = "請先掃面膜儲位編號，再掃原物料 QR。";
     updateLocationCode();
     return;
   }
@@ -248,6 +252,64 @@ function applySelectedMaskLocationRule() {
   positionSelect.value = Number(previousPosition) <= rule.versions ? previousPosition : "";
   maskRuleNote.textContent = `${aisleSelect.value}：${rule.temp}，最高 ${formatMaskItem(rule.levels)} 樓，${rule.versions} 版。`;
   handleLocationChange();
+}
+
+function clearMaskLocationState() {
+  scannedMaskLocationCode = "";
+}
+
+function getNormalizedMaskLocationCode({ aisle, level, position }) {
+  return `${aisle}-${formatMaskItem(level)}-${position}`;
+}
+
+function parseScannedMaskLocation(rawText) {
+  const match = String(rawText || "")
+    .trim()
+    .match(/^([A-Ha-h])\s*(\d{1,2})(?:[\s-]+)(\d{1,2})(?:[\s-]+)(\d{1,2})$/);
+
+  if (!match) {
+    return null;
+  }
+
+  const category = match[1].toUpperCase();
+  const aisleNumber = Number(match[2]);
+  const level = Number(match[3]);
+  const position = Number(match[4]);
+  const aisle = `${category}${formatMaskItem(aisleNumber)}`;
+  const rule = getMaskLocationRule(aisle);
+
+  if (
+    !rule ||
+    aisleNumber < 1 ||
+    level < 1 ||
+    position < 1 ||
+    level > rule.levels ||
+    position > rule.versions
+  ) {
+    return null;
+  }
+
+  return {
+    tempZone: TEMP_ZONE_BY_LABEL[rule.temp] || "",
+    aisle,
+    level: formatMaskItem(level),
+    position: String(position),
+    locationCode: getNormalizedMaskLocationCode({ aisle, level, position }),
+    tempLabel: rule.temp,
+  };
+}
+
+function applyScannedMaskLocation(location) {
+  maskSeriesSelect.value = parseMaskLocation(location.aisle)?.category || "";
+  setSelectOptions(aisleSelect, getMaskLocationOptions(maskSeriesSelect.value), "請選擇走道位置");
+  aisleSelect.value = location.aisle;
+  applySelectedMaskLocationRule();
+  tempZoneSelect.value = location.tempZone;
+  levelSelect.value = location.level;
+  positionSelect.value = location.position;
+  updateLocationCode();
+  scannedMaskLocationCode = location.locationCode;
+  maskRuleNote.textContent = `${location.locationCode}：${location.tempLabel}，請再掃原物料 QR。`;
 }
 
 function setSelectOptions(element, options, placeholder) {
@@ -312,7 +374,10 @@ function formatMaskItem(value) {
 
 function handleLocationChange() {
   updateLocationCode();
-  persistCurrentLocation();
+
+  if (currentFactory !== "mask") {
+    persistCurrentLocation();
+  }
 }
 
 function updateLocationCode() {
@@ -353,6 +418,11 @@ function persistCurrentLocation() {
 }
 
 function restoreLastLocation() {
+  if (currentFactory === "mask") {
+    updateLastLocationNote(null);
+    return;
+  }
+
   try {
     const raw = window.localStorage.getItem(LAST_LOCATION_KEY);
 
@@ -458,11 +528,19 @@ function setScanSource(source) {
   stopScanButton.disabled = !isCamera || !isScannerRunning;
 
   if (isCamera) {
-    setScannerStatus("按下開始掃描後，允許相機權限即可使用。");
+    setScannerStatus(
+      currentFactory === "mask"
+        ? "按下開始掃描後，請先掃面膜儲位編號，再掃原物料 QR。"
+        : "按下開始掃描後，允許相機權限即可使用。"
+    );
     clearHardwareScanBuffer();
   } else {
     stopScanner();
-    setScannerStatus("已切換為平板掃描槍模式。");
+    setScannerStatus(
+      currentFactory === "mask"
+        ? "已切換為平板掃描槍模式，請先掃面膜儲位編號，再掃原物料 QR。"
+        : "已切換為平板掃描槍模式。"
+    );
     window.setTimeout(() => hardwareScanInput.focus(), 0);
   }
 }
@@ -526,7 +604,7 @@ async function stopScanner() {
 
 async function onScanSuccess(decodedText) {
   await stopScanner();
-  applyScannedPayload(decodedText, "camera");
+  await applyScannedPayload(decodedText, "camera");
 }
 
 function handleHardwareScanKeydown(event) {
@@ -562,7 +640,7 @@ function processHardwareScanInput() {
   }
 
   clearHardwareScanBuffer();
-  applyScannedPayload(rawText, "hardware");
+  void applyScannedPayload(rawText, "hardware");
   hardwareScanInput.focus();
 }
 
@@ -578,7 +656,7 @@ function hasQrTag(rawText, tag) {
   return new RegExp(`${tag}(\\b|\\s*[:=,])`, "i").test(rawText);
 }
 
-function applyScannedPayload(rawText, source) {
+async function applyScannedPayload(rawText, source) {
   if (isDuplicateScan(rawText)) {
     scanDuplicateWarning.hidden = false;
     setScannerStatus("已擋下連續重複掃描，請確認是否同一張條碼。", "error");
@@ -593,12 +671,38 @@ function applyScannedPayload(rawText, source) {
   scanResultText.textContent = rawText;
   scanDuplicateWarning.hidden = true;
 
+  if (currentFactory === "mask") {
+    const scannedLocation = parseScannedMaskLocation(rawText);
+
+    if (scannedLocation) {
+      inputMethodInput.value = "manual";
+      rawQrInput.value = "";
+      applyScannedMaskLocation(scannedLocation);
+      setScannerStatus("已掃到面膜儲位，請再掃原物料 QR。", "success");
+      setMessage(`已帶入儲位 ${scannedLocation.locationCode}，請再掃原物料 QR。`, "success");
+      return;
+    }
+
+    if (!scannedMaskLocationCode) {
+      inputMethodInput.value = "manual";
+      rawQrInput.value = "";
+      setScannerStatus("請先掃面膜儲位編號，再掃原物料 QR。", "error");
+      setMessage("面膜廠請先掃儲位編號，例如 A27 01 1。", "error");
+      return;
+    }
+  }
+
   const parsed = parseQrPayload(rawText);
 
   if (!parsed.itemCode || !parsed.batchNo || !parsed.quantity) {
     const sourceLabel = source === "hardware" ? "掃描槍" : "相機";
     setScannerStatus(`已收到${sourceLabel}掃描內容，但無法完整解析 T2 / T3 / T4。`, "error");
-    setMessage("已帶入原始 QR 內容，請手動補齊料號、批次、每桶重量與桶數。", "error");
+    setMessage(
+      currentFactory === "mask"
+        ? "原物料 QR 格式不完整，請確認條碼內容後重新掃描。"
+        : "已帶入原始 QR 內容，請手動補齊料號、批次、每桶重量與桶數。",
+      "error"
+    );
     return;
   }
 
@@ -606,7 +710,12 @@ function applyScannedPayload(rawText, source) {
 
   if (!normalizedWeight) {
     setScannerStatus("掃描成功，但每桶重量格式無法辨識，請手動確認。", "error");
-    setMessage("已帶入料號與批次，請手動補上每桶重量與桶數。", "error");
+    setMessage(
+      currentFactory === "mask"
+        ? "原物料 QR 的重量格式無法辨識，請確認條碼內容後重新掃描。"
+        : "已帶入料號與批次，請手動補上每桶重量與桶數。",
+      "error"
+    );
     itemCodeInput.value = parsed.itemCode;
     batchNoInput.value = parsed.batchNo;
     weightPerBucketInput.value = "";
@@ -619,7 +728,54 @@ function applyScannedPayload(rawText, source) {
   weightPerBucketInput.value = normalizedWeight;
   updateComputedQuantity();
   setScannerStatus("掃描成功，已自動帶入料號、批次與每桶重量。", "success");
-  setMessage("QR 解析成功，請確認儲位後送出建檔。", "success");
+  setMessage("QR 解析成功。", "success");
+  await tryAutoSubmitFromScan();
+}
+
+async function tryAutoSubmitFromScan() {
+  if (currentFactory !== "mask") {
+    return;
+  }
+
+  const validationError = getAutoSubmitValidationError();
+
+  if (validationError) {
+    setMessage(`QR 解析成功，但未自動上傳：${validationError}`, "error");
+    return;
+  }
+
+  await handleSubmit();
+}
+
+function getAutoSubmitValidationError() {
+  if (currentFactory === "mask" && !scannedMaskLocationCode) {
+    return "請先掃儲位編號。";
+  }
+
+  const createdBy = createdByInput.value.trim();
+  const itemCode = itemCodeInput.value.trim();
+  const batchNo = batchNoInput.value.trim();
+  const weightPerBucket = Number(weightPerBucketInput.value);
+  const bucketCount = Number(bucketCountInput.value);
+  const quantity = Number(quantityInput.value);
+
+  if (!createdBy) {
+    return "請先輸入建立人員。";
+  }
+
+  if (!itemCode || !batchNo || !Number.isFinite(weightPerBucket) || weightPerBucket <= 0) {
+    return "掃描內容未完整解析，請確認料號、批次與每桶重量。";
+  }
+
+  if (!Number.isInteger(bucketCount) || bucketCount <= 0 || !Number.isFinite(quantity) || quantity <= 0) {
+    return "桶數或總數量不正確。";
+  }
+
+  if (!tempZoneSelect.value || !aisleSelect.value || !levelSelect.value || !positionSelect.value) {
+    return "請先完整選好儲位。";
+  }
+
+  return "";
 }
 
 function parseQrPayload(rawText) {
@@ -673,7 +829,7 @@ function isDuplicateScan(rawText) {
 }
 
 async function handleSubmit(event) {
-  event.preventDefault();
+  event?.preventDefault();
 
   if (!supabaseClient) {
     setMessage("請先在 app.js 填入 SUPABASE_URL 與 SUPABASE_ANON_KEY。", "error");
@@ -770,11 +926,19 @@ async function handleSubmit(event) {
   }
 
   window.localStorage.setItem(LAST_CREATED_BY_KEY, createdBy);
-  persistCurrentLocation();
-  setMessage(`建檔成功，儲位 ${locationCode} 已寫入資料庫。`, "success");
+
+  if (currentFactory !== "mask") {
+    persistCurrentLocation();
+  }
+
+  setMessage(
+    currentFactory === "mask"
+      ? `建立成功：${locationCode} / ${itemCode}`
+      : `建檔成功，儲位 ${locationCode} 已寫入資料庫。`,
+    "success"
+  );
   form.reset();
   createdByInput.value = createdBy;
-  restoreLastLocation();
   ensureDefaultBucketCount();
   inputMethodInput.value = "manual";
   rawQrInput.value = "";
@@ -783,16 +947,29 @@ async function handleSubmit(event) {
   scanDuplicateWarning.hidden = true;
   clearHardwareScanBuffer();
   updateComputedQuantity();
+
   if (currentFactory === "mask") {
+    clearMaskLocationState();
     setupMaskLocationSelects();
+    updateLastLocationNote(null);
+    maskRuleNote.textContent = "請先掃面膜儲位編號，再掃原物料 QR。";
+  } else {
+    restoreLastLocation();
   }
+
   updateLocationCode();
 
   if (currentScanSource === "hardware") {
     hardwareScanInput.focus();
   } else {
-    setScannerStatus("按下開始掃描後，允許相機權限即可使用。");
+    setScannerStatus(
+      currentFactory === "mask"
+        ? "按下開始掃描後，請先掃面膜儲位編號，再掃原物料 QR。"
+        : "按下開始掃描後，允許相機權限即可使用。"
+    );
   }
+
+  updateSubmitButtonVisibility();
 }
 
 function getQrScannerConfig() {
@@ -840,4 +1017,8 @@ function zoomPreviewVideo() {
 
   videoEl.style.transform = "scale(1.8)";
   videoEl.style.transformOrigin = "center center";
+}
+
+function updateSubmitButtonVisibility() {
+  submitButton.hidden = currentFactory === "mask";
 }
