@@ -15,7 +15,7 @@ const TEMP_ZONE_BY_LABEL = {
 };
 const MASK_FACTORY_RULES = [
   { category: "A", start: 1, end: 10, versions: 3, levels: 3, temp: "常溫" },
-  { category: "A", start: 11, end: 26, versions: 1, levels: 3, temp: "常溫" },
+  { category: "A", start: 11, end: 26, versions: 3, levels: 3, temp: "常溫" },
   { category: "A", start: 27, end: 32, versions: 3, levels: 3, temp: "常溫" },
   { category: "A", start: 33, end: 33, versions: 1, levels: 2, temp: "常溫" },
   { category: "B", start: 1, end: 14, versions: 2, levels: 3, temp: "冷藏" },
