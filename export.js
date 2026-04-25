@@ -131,6 +131,9 @@ function renderPreview(rows) {
         <button class="inline-action" type="button" data-action="edit" data-id="${escAttr(row.id ?? "")}" ${row.id == null ? "disabled" : ""}>
           ${row.id == null ? "缺少 id" : "編輯"}
         </button>
+        <button class="inline-action danger-inline-action" type="button" data-action="delete" data-id="${escAttr(row.id ?? "")}" data-item="${escAttr(row.item_code ?? "")}" data-location="${escAttr(row.location_code ?? "")}" ${row.id == null ? "disabled" : ""}>
+          ${row.id == null ? "缺少 id" : "刪除"}
+        </button>
       </td>
     `;
     fragment.appendChild(tr);
@@ -187,7 +190,7 @@ function buildEditRow(row) {
   return tr;
 }
 
-function handlePreviewClick(event) {
+async function handlePreviewClick(event) {
   const target = event.target.closest("button");
 
   if (!target) {
@@ -202,10 +205,64 @@ function handlePreviewClick(event) {
     return;
   }
 
+  if (action === "delete") {
+    await handleDeleteRecord(target);
+    return;
+  }
+
   if (action === "cancel-edit") {
     editingRecordId = null;
     renderPreview(queryResults);
   }
+}
+
+async function handleDeleteRecord(button) {
+  if (!supabase) {
+    setMessage("尚未設定 Supabase，無法刪除。", "error");
+    return;
+  }
+
+  const id = button.dataset.id;
+  const itemCode = button.dataset.item || "未命名料號";
+  const locationCode = button.dataset.location || "未指定儲位";
+
+  if (!id) {
+    setMessage("缺少資料 id，無法刪除。", "error");
+    return;
+  }
+
+  const shouldDelete = window.confirm(`確定要刪除這筆資料嗎？\n料號：${itemCode}\n儲位：${locationCode}`);
+
+  if (!shouldDelete) {
+    return;
+  }
+
+  button.disabled = true;
+  setMessage("刪除中...");
+
+  const { error } = await supabase.from("inventory_records").delete().eq("id", id);
+
+  if (error) {
+    button.disabled = false;
+
+    if (error.code === "42501" || error.message.toLowerCase().includes("permission")) {
+      setMessage("刪除失敗：RLS 尚未開放 DELETE 權限，請先到 Supabase 新增 policy。", "error");
+      return;
+    }
+
+    setMessage(`刪除失敗：${error.message}`, "error");
+    return;
+  }
+
+  queryResults = queryResults.filter((row) => String(row.id) !== String(id));
+
+  if (String(editingRecordId) === String(id)) {
+    editingRecordId = null;
+  }
+
+  renderPreview(queryResults);
+  exportButton.disabled = queryResults.length === 0;
+  setMessage("資料已刪除。", "success");
 }
 
 function handleEditInput(event) {
