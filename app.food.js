@@ -1,4 +1,9 @@
 (function () {
+  const FOOD_TEMP_ZONE_OPTIONS = [
+    { value: "F", label: "冷藏" },
+    { value: "G", label: "冷凍" },
+  ];
+
   function resetLocationSelectRanges(ctx) {
     ctx.initializeSelect(ctx.aisleSelect, 20, { padStart: 2, placeholder: "請選擇走道位置" });
     ctx.initializeSelect(ctx.levelSelect, 3, { placeholder: "請選擇樓層" });
@@ -12,7 +17,7 @@
   window.InventoryFood = {
     activate(ctx) {
       ctx.maskSeriesSelect.value = "";
-      ctx.resetTempZoneOptions();
+      ctx.resetTempZoneOptions(FOOD_TEMP_ZONE_OPTIONS);
       resetLocationSelectRanges(ctx);
     },
 

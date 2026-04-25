@@ -180,10 +180,10 @@ function initializeSelect(element, max, options = {}) {
   }
 }
 
-function resetTempZoneOptions() {
+function resetTempZoneOptions(options) {
   setSelectOptions(
     tempZoneSelect,
-    [
+    options || [
       { value: "F", label: "冷藏" },
       { value: "G", label: "常溫" },
     ],
