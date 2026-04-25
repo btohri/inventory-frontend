@@ -9,27 +9,11 @@ const FACTORIES = {
   food: "食品廠",
   mask: "面膜廠",
 };
-const TEMP_ZONE_BY_LABEL = {
-  "冷藏": "F",
-  "常溫": "G",
+
+const factoryModules = {
+  food: window.InventoryFood,
+  mask: window.InventoryMask,
 };
-const MASK_FACTORY_RULES = [
-  { category: "A", start: 1, end: 10, versions: 3, levels: 3, temp: "常溫" },
-  { category: "A", start: 11, end: 26, versions: 3, levels: 3, temp: "常溫" },
-  { category: "A", start: 27, end: 32, versions: 3, levels: 3, temp: "常溫" },
-  { category: "A", start: 33, end: 33, versions: 1, levels: 2, temp: "常溫" },
-  { category: "B", start: 1, end: 14, versions: 2, levels: 3, temp: "冷藏" },
-  { category: "B", start: 15, end: 16, versions: 1, levels: 3, temp: "冷藏" },
-  { category: "C", start: 1, end: 2, versions: 3, levels: 3, temp: "常溫" },
-  { category: "C", start: 3, end: 8, versions: 1, levels: 2, temp: "常溫" },
-  { category: "E", start: 1, end: 50, versions: 1, levels: 3, temp: "常溫" },
-  { category: "D", start: 1, end: 18, versions: 3, levels: 3, temp: "常溫" },
-  { category: "D", start: 19, end: 36, versions: 2, levels: 3, temp: "常溫" },
-  { category: "D", start: 37, end: 58, versions: 3, levels: 3, temp: "常溫" },
-  { category: "G", start: 1, end: 2, versions: 2, levels: 3, temp: "冷藏" },
-  { category: "H", start: 1, end: 3, versions: 1, levels: 2, temp: "常溫" },
-  { category: "F", start: 1, end: 2, versions: 3, levels: 3, temp: "常溫" },
-];
 
 const factorySelection = document.querySelector("#factory-selection");
 const factoryChoiceButtons = document.querySelectorAll("[data-factory]");
@@ -77,7 +61,6 @@ let isScannerRunning = false;
 let currentScanSource = "camera";
 let hardwareScanTimer = null;
 let currentFactory = "";
-let scannedMaskLocationCode = "";
 
 const hasSupabaseConfig =
   SUPABASE_URL !== "YOUR_SUPABASE_URL" &&
@@ -118,35 +101,56 @@ hardwareModeButton.addEventListener("click", () => setScanSource("hardware"));
 hardwareScanInput.addEventListener("keydown", handleHardwareScanKeydown);
 hardwareScanInput.addEventListener("input", handleHardwareScanInput);
 
+function getCurrentFactoryModule() {
+  return factoryModules[currentFactory] || factoryModules.food;
+}
+
+function getModuleContext() {
+  return {
+    aisleSelect,
+    handleLocationChange,
+    initializeSelect,
+    inputMethodInput,
+    levelSelect,
+    maskRuleNote,
+    maskSeriesSelect,
+    positionSelect,
+    rawQrInput,
+    resetTempZoneOptions,
+    scanDuplicateWarning,
+    setMessage,
+    setScannerStatus,
+    setSelectOptions,
+    tempZoneSelect,
+    updateLastLocationNote,
+    updateLocationCode,
+    restoreLastLocation,
+  };
+}
+
 function setFactory(factory) {
-  if (!FACTORIES[factory]) {
+  const module = factoryModules[factory];
+
+  if (!module || !FACTORIES[factory]) {
     return;
   }
 
   currentFactory = factory;
-  clearMaskLocationState();
+  module.clearState?.();
   activeFactoryLabel.textContent = FACTORIES[factory];
   factorySelection.hidden = true;
   inventoryCard.hidden = false;
   document.body.classList.toggle("factory-mask", factory === "mask");
   document.body.classList.toggle("factory-food", factory === "food");
   maskRulePanel.hidden = factory !== "mask";
-
-  if (factory === "mask") {
-    setupMaskLocationSelects();
-  } else {
-    maskSeriesSelect.value = "";
-    resetTempZoneOptions();
-    resetLocationSelectRanges();
-  }
-
+  module.activate?.(getModuleContext());
   updateLocationCode();
   updateSubmitButtonVisibility();
 }
 
 function showFactorySelection() {
+  getCurrentFactoryModule().clearState?.();
   currentFactory = "";
-  clearMaskLocationState();
   factorySelection.hidden = false;
   inventoryCard.hidden = true;
   document.body.classList.remove("factory-mask", "factory-food");
@@ -176,12 +180,6 @@ function initializeSelect(element, max, options = {}) {
   }
 }
 
-function resetLocationSelectRanges() {
-  initializeSelect(aisleSelect, 20, { padStart: 2, placeholder: "請選擇走道位置" });
-  initializeSelect(levelSelect, 3, { placeholder: "請選擇樓層" });
-  initializeSelect(positionSelect, 3, { placeholder: "請選擇版位" });
-}
-
 function resetTempZoneOptions() {
   setSelectOptions(
     tempZoneSelect,
@@ -193,127 +191,12 @@ function resetTempZoneOptions() {
   );
 }
 
-function setupMaskLocationSelects() {
-  const currentAisle = aisleSelect.value;
-  const currentSeries = parseMaskLocation(currentAisle)?.category || maskSeriesSelect.value;
-  resetTempZoneOptions();
-  maskSeriesSelect.value = getMaskSeriesOptions().includes(currentSeries) ? currentSeries : "";
-  setSelectOptions(aisleSelect, getMaskLocationOptions(maskSeriesSelect.value), "請選擇走道位置");
-  initializeSelect(levelSelect, 3, { padStart: 2, placeholder: "請選擇樓層" });
-  initializeSelect(positionSelect, 3, { placeholder: "請選擇版位" });
-  aisleSelect.value = getMaskLocationRule(currentAisle) ? currentAisle : "";
-  levelSelect.value = "";
-  positionSelect.value = "";
-  applySelectedMaskLocationRule();
-}
-
 function handleMaskSeriesChange() {
-  setSelectOptions(aisleSelect, getMaskLocationOptions(maskSeriesSelect.value), "請選擇走道位置");
-  aisleSelect.value = "";
-  levelSelect.value = "";
-  positionSelect.value = "";
-  applySelectedMaskLocationRule();
+  getCurrentFactoryModule().handleMaskSeriesChange?.(getModuleContext());
 }
 
 function handleAisleChange() {
-  if (currentFactory === "mask") {
-    applySelectedMaskLocationRule();
-    return;
-  }
-
-  handleLocationChange();
-}
-
-function applySelectedMaskLocationRule() {
-  const rule = getMaskLocationRule(aisleSelect.value);
-
-  if (!rule) {
-    resetTempZoneOptions();
-    initializeSelect(levelSelect, 3, { padStart: 2, placeholder: "請選擇樓層" });
-    initializeSelect(positionSelect, 3, { placeholder: "請選擇版位" });
-    maskRuleNote.textContent = "請先掃面膜儲位條碼，再掃原物料 QR。";
-    updateLocationCode();
-    return;
-  }
-
-  const previousLevel = levelSelect.value;
-  const previousPosition = positionSelect.value;
-  const tempZone = TEMP_ZONE_BY_LABEL[rule.temp];
-  maskSeriesSelect.value = rule.category;
-  setSelectOptions(
-    tempZoneSelect,
-    tempZone ? [{ value: tempZone, label: rule.temp }] : [],
-    "請選擇溫層"
-  );
-  tempZoneSelect.value = tempZone || "";
-  initializeSelect(levelSelect, rule.levels, { padStart: 2, placeholder: "請選擇樓層" });
-  initializeSelect(positionSelect, rule.versions, { placeholder: "請選擇版位" });
-  levelSelect.value = Number(previousLevel) <= rule.levels ? previousLevel : "";
-  positionSelect.value = Number(previousPosition) <= rule.versions ? previousPosition : "";
-  maskRuleNote.textContent = `${aisleSelect.value}：${rule.temp}，最高 ${formatMaskItem(rule.levels)} 樓，${rule.versions} 版。`;
-  handleLocationChange();
-}
-
-function clearMaskLocationState() {
-  scannedMaskLocationCode = "";
-}
-
-function getNormalizedMaskLocationCode({ aisle, level, position }) {
-  return `${aisle}-${formatMaskItem(level)}-${position}`;
-}
-
-function parseScannedMaskLocation(rawText) {
-  const normalized = String(rawText || "").trim();
-  const segmentedMatch = normalized.match(
-    /^([A-Ha-h])\s*(\d{1,2})(?:[\s-]+)(\d{1,2})(?:[\s-]+)(\d{1,2})$/
-  );
-  const compactFiveDigitMatch = normalized.match(/^([A-Ha-h])(\d{2})(\d{2})(\d)$/);
-  const compactFourDigitMatch = normalized.match(/^([A-Ha-h])(\d{2})(\d)(\d)$/);
-  const match = segmentedMatch || compactFiveDigitMatch || compactFourDigitMatch;
-
-  if (!match) {
-    return null;
-  }
-
-  const category = match[1].toUpperCase();
-  const aisleNumber = Number(match[2]);
-  const level = Number(match[3]);
-  const position = Number(match[4]);
-  const aisle = `${category}${formatMaskItem(aisleNumber)}`;
-  const rule = getMaskLocationRule(aisle);
-
-  if (
-    !rule ||
-    aisleNumber < 1 ||
-    level < 1 ||
-    position < 1 ||
-    level > rule.levels ||
-    position > rule.versions
-  ) {
-    return null;
-  }
-
-  return {
-    tempZone: TEMP_ZONE_BY_LABEL[rule.temp] || "",
-    aisle,
-    level: formatMaskItem(level),
-    position: String(position),
-    locationCode: getNormalizedMaskLocationCode({ aisle, level, position }),
-    tempLabel: rule.temp,
-  };
-}
-
-function applyScannedMaskLocation(location) {
-  maskSeriesSelect.value = parseMaskLocation(location.aisle)?.category || "";
-  setSelectOptions(aisleSelect, getMaskLocationOptions(maskSeriesSelect.value), "請選擇走道位置");
-  aisleSelect.value = location.aisle;
-  applySelectedMaskLocationRule();
-  tempZoneSelect.value = location.tempZone;
-  levelSelect.value = location.level;
-  positionSelect.value = location.position;
-  updateLocationCode();
-  scannedMaskLocationCode = location.locationCode;
-  maskRuleNote.textContent = `${location.locationCode}：${location.tempLabel}，請再掃原物料 QR。`;
+  getCurrentFactoryModule().handleAisleChange?.(getModuleContext());
 }
 
 function setSelectOptions(element, options, placeholder) {
@@ -327,82 +210,22 @@ function setSelectOptions(element, options, placeholder) {
   });
 }
 
-function getMaskLocationOptions(series = "") {
-  return MASK_FACTORY_RULES.filter((rule) => !series || rule.category === series).flatMap((rule) => {
-    const options = [];
-
-    for (let item = rule.start; item <= rule.end; item += 1) {
-      const code = `${rule.category}${formatMaskItem(item)}`;
-      options.push({ value: code, label: code });
-    }
-
-    return options;
-  });
-}
-
-function getMaskSeriesOptions() {
-  return [...new Set(MASK_FACTORY_RULES.map((rule) => rule.category))];
-}
-
-function getMaskLocationRule(location) {
-  const parsed = parseMaskLocation(location);
-
-  if (!parsed) {
-    return null;
-  }
-
-  return MASK_FACTORY_RULES.find(
-    (rule) =>
-      rule.category === parsed.category &&
-      parsed.item >= rule.start &&
-      parsed.item <= rule.end
-  ) || null;
-}
-
-function parseMaskLocation(location) {
-  const match = String(location || "").match(/^([A-Z])(\d{2})$/);
-
-  if (!match) {
-    return null;
-  }
-
-  return {
-    category: match[1],
-    item: Number(match[2]),
-  };
-}
-
-function formatMaskItem(value) {
-  return String(value).padStart(2, "0");
-}
-
 function handleLocationChange() {
   updateLocationCode();
 
-  if (currentFactory !== "mask") {
+  if (getCurrentFactoryModule().shouldPersistLocation?.()) {
     persistCurrentLocation();
   }
 }
 
 function updateLocationCode() {
+  const module = getCurrentFactoryModule();
   const tempZone = tempZoneSelect.value;
   const aisle = aisleSelect.value;
   const level = levelSelect.value;
   const position = positionSelect.value;
 
-  locationCodeLabel.textContent = getLocationCode({ tempZone, aisle, level, position });
-}
-
-function getLocationCode({ tempZone, aisle, level, position }) {
-  if (currentFactory === "mask") {
-    return aisle && level && position
-      ? `${aisle}-${formatMaskItem(level)}-${position}`
-      : "-";
-  }
-
-  return tempZone && aisle && level && position
-    ? `${tempZone}-${aisle}-${level}-${position}`
-    : "-";
+  locationCodeLabel.textContent = module.getLocationCode({ tempZone, aisle, level, position });
 }
 
 function persistCurrentLocation() {
@@ -422,11 +245,6 @@ function persistCurrentLocation() {
 }
 
 function restoreLastLocation() {
-  if (currentFactory === "mask") {
-    updateLastLocationNote(null);
-    return;
-  }
-
   try {
     const raw = window.localStorage.getItem(LAST_LOCATION_KEY);
 
@@ -515,6 +333,7 @@ function ensureDefaultBucketCount() {
 function setScanSource(source) {
   currentScanSource = source;
   const isCamera = source === "camera";
+  const module = getCurrentFactoryModule();
   document.body.classList.toggle("scan-source-camera", isCamera);
   document.body.classList.toggle("scan-source-hardware", !isCamera);
 
@@ -532,19 +351,11 @@ function setScanSource(source) {
   stopScanButton.disabled = !isCamera || !isScannerRunning;
 
   if (isCamera) {
-    setScannerStatus(
-      currentFactory === "mask"
-        ? "按下開始掃描後，請先掃面膜儲位條碼，再掃原物料 QR。"
-        : "按下開始掃描後，允許相機權限即可使用。"
-    );
+    setScannerStatus(module.getIdleScannerText());
     clearHardwareScanBuffer();
   } else {
     stopScanner();
-    setScannerStatus(
-      currentFactory === "mask"
-        ? "已切換為平板掃描槍模式，請先掃面膜儲位條碼，再掃原物料 QR。"
-        : "已切換為平板掃描槍模式。"
-    );
+    setScannerStatus(module.getHardwareScannerText());
     window.setTimeout(() => hardwareScanInput.focus(), 0);
   }
 }
@@ -575,11 +386,7 @@ async function startScanner() {
     }
 
     setScanningState(true);
-    setScannerStatus(
-      currentFactory === "mask"
-        ? "相機啟動中，請先對準面膜儲位條碼，再掃原物料 QR。"
-        : "相機啟動中，請將 QR Code 對準畫面。"
-    );
+    setScannerStatus(getCurrentFactoryModule().getCameraStartingText());
 
     await startQrReaderWithFallback();
     zoomPreviewVideo();
@@ -611,12 +418,13 @@ async function stopScanner() {
 }
 
 async function onScanSuccess(decodedText) {
-  const keepCameraRunningForMaskLocation =
+  const module = getCurrentFactoryModule();
+  const keepCameraRunning =
     currentFactory === "mask" &&
-    !scannedMaskLocationCode &&
-    Boolean(parseScannedMaskLocation(decodedText));
+    !module.hasScannedLocation() &&
+    module.isLocationScan(decodedText);
 
-  if (!keepCameraRunningForMaskLocation) {
+  if (!keepCameraRunning) {
     await stopScanner();
   }
 
@@ -673,11 +481,33 @@ function hasQrTag(rawText, tag) {
 }
 
 async function applyScannedPayload(rawText, source) {
-  if (isDuplicateScan(rawText)) {
-    scanDuplicateWarning.hidden = false;
-    setScannerStatus("已擋下連續重複掃描，請確認是否同一張條碼。", "error");
-    setMessage("偵測到短時間內重複掃描同一張條碼。", "error");
+  const module = getCurrentFactoryModule();
+  const moduleResult = module.handleScannedPayload?.(getModuleContext(), rawText);
+
+  if (moduleResult?.handled) {
     return;
+  }
+
+  if (isDuplicateScan(rawText)) {
+    if (currentFactory === "mask") {
+      const shouldContinue = window.confirm("偵測到短時間內重複掃描同一張原物料，仍要繼續建檔嗎？");
+
+      if (!shouldContinue) {
+        scanDuplicateWarning.hidden = false;
+        setScannerStatus("已取消這次重複的原物料掃描。", "error");
+        setMessage("已取消這次重複的原物料掃描。", "error");
+        return;
+      }
+
+      scanDuplicateWarning.hidden = false;
+      setScannerStatus("已確認重複原物料掃描，系統將繼續建檔。", "success");
+      setMessage("已確認重複原物料掃描，系統將繼續建檔。", "success");
+    } else {
+      scanDuplicateWarning.hidden = false;
+      setScannerStatus("已擋下連續重複掃描，請確認是否同一張條碼。", "error");
+      setMessage("偵測到短時間內重複掃描同一張條碼。", "error");
+      return;
+    }
   }
 
   rememberScan(rawText);
@@ -686,27 +516,6 @@ async function applyScannedPayload(rawText, source) {
   scanResult.hidden = false;
   scanResultText.textContent = rawText;
   scanDuplicateWarning.hidden = true;
-
-  if (currentFactory === "mask") {
-    const scannedLocation = parseScannedMaskLocation(rawText);
-
-    if (scannedLocation) {
-      inputMethodInput.value = "manual";
-      rawQrInput.value = "";
-      applyScannedMaskLocation(scannedLocation);
-      setScannerStatus("已掃到面膜儲位條碼，請再掃原物料 QR。", "success");
-      setMessage(`已帶入儲位 ${scannedLocation.locationCode}，請再掃原物料 QR。`, "success");
-      return;
-    }
-
-    if (!scannedMaskLocationCode) {
-      inputMethodInput.value = "manual";
-      rawQrInput.value = "";
-      setScannerStatus("請先掃面膜儲位條碼，再掃原物料 QR。", "error");
-      setMessage("面膜廠請先掃儲位條碼，例如 A18012、A3301 或 D01033。", "error");
-      return;
-    }
-  }
 
   const parsed = parseQrPayload(rawText);
 
@@ -764,7 +573,7 @@ async function tryAutoSubmitFromScan() {
 }
 
 function getAutoSubmitValidationError() {
-  if (currentFactory === "mask" && !scannedMaskLocationCode) {
+  if (currentFactory === "mask" && !getCurrentFactoryModule().hasScannedLocation()) {
     return "請先掃儲位條碼。";
   }
 
@@ -858,7 +667,7 @@ async function handleSubmit(event) {
   const weightPerBucket = Number(formData.get("weightPerBucket"));
   const bucketCount = Number(formData.get("bucketCount"));
   const quantity = Number(formData.get("quantity"));
-  let tempZone = formData.get("tempZone")?.toString();
+  const tempZone = formData.get("tempZone")?.toString();
   const aisle = formData.get("aisle")?.toString();
   const level = formData.get("level")?.toString();
   const position = formData.get("position")?.toString();
@@ -894,24 +703,18 @@ async function handleSubmit(event) {
     return;
   }
 
-  const maskLocationRule = currentFactory === "mask" ? getMaskLocationRule(aisle) : null;
+  const submitResult = getCurrentFactoryModule().prepareSubmit({
+    tempZone,
+    aisle,
+    level,
+    position,
+    setMessage,
+  });
 
-  if (currentFactory === "mask") {
-    if (!maskLocationRule) {
-      setMessage("請先選擇正確的面膜走道位置。", "error");
-      return;
-    }
-
-    if (Number(level) > maskLocationRule.levels || Number(position) > maskLocationRule.versions) {
-      setMessage("樓層或版位超出此面膜位置可用範圍。", "error");
-      return;
-    }
-
-    tempZone = TEMP_ZONE_BY_LABEL[maskLocationRule.temp] || tempZone;
+  if (!submitResult.ok) {
+    return;
   }
 
-  const locationCode = getLocationCode({ tempZone, aisle, level, position });
-  const parsedMaskLocation = currentFactory === "mask" ? parseMaskLocation(aisle) : null;
   const payload = {
     item_code: itemCode,
     batch_no: batchNo,
@@ -919,11 +722,11 @@ async function handleSubmit(event) {
     weight_per_bucket: weightPerBucket,
     bucket_count: bucketCount,
     quantity,
-    temp_zone: tempZone,
-    aisle: parsedMaskLocation ? parsedMaskLocation.item : Number(aisle),
+    temp_zone: submitResult.tempZone,
+    aisle: submitResult.parsedAisle,
     level: Number(level),
     position: Number(position),
-    location_code: locationCode,
+    location_code: submitResult.locationCode,
     input_method: rawQr ? "scan" : "manual",
     created_by: createdBy,
     raw_qr: rawQr,
@@ -943,14 +746,14 @@ async function handleSubmit(event) {
 
   window.localStorage.setItem(LAST_CREATED_BY_KEY, createdBy);
 
-  if (currentFactory !== "mask") {
+  if (getCurrentFactoryModule().shouldPersistLocation?.()) {
     persistCurrentLocation();
   }
 
   setMessage(
     currentFactory === "mask"
-      ? `建立成功：${locationCode} / ${itemCode}`
-      : `建檔成功，儲位 ${locationCode} 已寫入資料庫。`,
+      ? `建立成功：${submitResult.locationCode} / ${itemCode}`
+      : `建檔成功，儲位 ${submitResult.locationCode} 已寫入資料庫。`,
     "success"
   );
   form.reset();
@@ -963,26 +766,13 @@ async function handleSubmit(event) {
   scanDuplicateWarning.hidden = true;
   clearHardwareScanBuffer();
   updateComputedQuantity();
-
-  if (currentFactory === "mask") {
-    clearMaskLocationState();
-    setupMaskLocationSelects();
-    updateLastLocationNote(null);
-    maskRuleNote.textContent = "請先掃面膜儲位條碼，再掃原物料 QR。";
-  } else {
-    restoreLastLocation();
-  }
-
+  getCurrentFactoryModule().afterSubmit?.(getModuleContext());
   updateLocationCode();
 
   if (currentScanSource === "hardware") {
     hardwareScanInput.focus();
   } else {
-    setScannerStatus(
-      currentFactory === "mask"
-        ? "按下開始掃描後，請先掃面膜儲位條碼，再掃原物料 QR。"
-        : "按下開始掃描後，允許相機權限即可使用。"
-    );
+    setScannerStatus(getCurrentFactoryModule().getIdleScannerText());
   }
 
   updateSubmitButtonVisibility();
