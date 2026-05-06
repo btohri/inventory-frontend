@@ -5,7 +5,7 @@
   ];
 
   function resetLocationSelectRanges(ctx) {
-    ctx.initializeSelect(ctx.aisleSelect, 20, { padStart: 2, placeholder: "請選擇走道位置" });
+    ctx.initializeSelect(ctx.aisleSelect, 25, { padStart: 2, placeholder: "請選擇走道位置" });
     ctx.initializeSelect(ctx.levelSelect, 3, { placeholder: "請選擇樓層" });
     ctx.initializeSelect(ctx.positionSelect, 3, { placeholder: "請選擇版位" });
   }

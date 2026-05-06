@@ -71,7 +71,7 @@ const supabaseClient = hasSupabaseConfig
   : null;
 
 restoreLastCreatedBy();
-initializeSelect(aisleSelect, 20, { padStart: 2, placeholder: "請選擇走道位置" });
+initializeSelect(aisleSelect, 25, { padStart: 2, placeholder: "請選擇走道位置" });
 initializeSelect(levelSelect, 3, { placeholder: "請選擇樓層" });
 initializeSelect(positionSelect, 3, { placeholder: "請選擇版位" });
 restoreLastLocation();

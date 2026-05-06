@@ -1,4 +1,5 @@
 (function () {
+  const MASK_LAST_LOCATION_KEY = "inventory-mask-last-location";
   const TEMP_ZONE_BY_LABEL = {
     "冷藏": "F",
     "常溫": "G",
@@ -79,6 +80,59 @@
 
   function clearState() {
     scannedLocationCode = "";
+  }
+
+  function getStoredMaskLocation() {
+    try {
+      const raw = window.localStorage.getItem(MASK_LAST_LOCATION_KEY);
+
+      if (!raw) {
+        return null;
+      }
+
+      const location = JSON.parse(raw);
+
+      if (
+        !location?.tempZone ||
+        !location?.aisle ||
+        !location?.level ||
+        !location?.position ||
+        !getMaskLocationRule(location.aisle)
+      ) {
+        return null;
+      }
+
+      const rule = getMaskLocationRule(location.aisle);
+
+      if (
+        Number(location.level) < 1 ||
+        Number(location.position) < 1 ||
+        Number(location.level) > rule.levels ||
+        Number(location.position) > rule.versions
+      ) {
+        return null;
+      }
+
+      return location;
+    } catch {
+      return null;
+    }
+  }
+
+  function rememberMaskLocation(location) {
+    if (!location?.tempZone || !location?.aisle || !location?.level || !location?.position) {
+      return;
+    }
+
+    window.localStorage.setItem(
+      MASK_LAST_LOCATION_KEY,
+      JSON.stringify({
+        tempZone: location.tempZone,
+        aisle: location.aisle,
+        level: location.level,
+        position: location.position,
+      })
+    );
   }
 
   function applySelectedMaskLocationRule(ctx) {
@@ -177,12 +231,52 @@
     ctx.positionSelect.value = location.position;
     ctx.updateLocationCode();
     scannedLocationCode = location.locationCode;
+    rememberMaskLocation(location);
+    ctx.updateLastLocationNote(location);
     ctx.maskRuleNote.textContent = `${location.locationCode}：${location.tempLabel}，請再掃原物料 QR。`;
+  }
+
+  function restoreStoredMaskLocation(ctx) {
+    const storedLocation = getStoredMaskLocation();
+
+    if (!storedLocation) {
+      ctx.updateLastLocationNote(null);
+      return false;
+    }
+
+    const rule = getMaskLocationRule(storedLocation.aisle);
+    applyScannedMaskLocation(ctx, {
+      ...storedLocation,
+      locationCode: getLocationCode(storedLocation),
+      tempLabel: rule?.temp || "",
+    });
+    ctx.maskRuleNote.textContent = `${getLocationCode(storedLocation)}：已自動套用上次面膜廠儲位。`;
+    return true;
+  }
+
+  function getIdleScannerText() {
+    return getStoredMaskLocation()
+      ? "按下開始掃描後，請掃原物料 QR。"
+      : "按下開始掃描後，請先掃面膜儲位條碼，再掃原物料 QR。";
+  }
+
+  function getHardwareScannerText() {
+    return getStoredMaskLocation()
+      ? "已切換為平板掃描槍模式，請掃原物料 QR。"
+      : "已切換為平板掃描槍模式，請先掃面膜儲位條碼，再掃原物料 QR。";
+  }
+
+  function getCameraStartingText() {
+    return getStoredMaskLocation()
+      ? "相機啟動中，請對準原物料 QR。"
+      : "相機啟動中，請先對準面膜儲位條碼，再掃原物料 QR。";
   }
 
   window.InventoryMask = {
     activate(ctx) {
       setupMaskLocationSelects(ctx);
+      restoreStoredMaskLocation(ctx);
+      ctx.setScannerStatus(getIdleScannerText());
     },
 
     clearState,
@@ -259,22 +353,20 @@
     },
 
     afterSubmit(ctx) {
-      clearState();
       setupMaskLocationSelects(ctx);
-      ctx.updateLastLocationNote(null);
-      ctx.maskRuleNote.textContent = "請先掃面膜儲位條碼，再掃原物料 QR。";
+      restoreStoredMaskLocation(ctx);
     },
 
     getIdleScannerText() {
-      return "按下開始掃描後，請先掃面膜儲位條碼，再掃原物料 QR。";
+      return getIdleScannerText();
     },
 
     getHardwareScannerText() {
-      return "已切換為平板掃描槍模式，請先掃面膜儲位條碼，再掃原物料 QR。";
+      return getHardwareScannerText();
     },
 
     getCameraStartingText() {
-      return "相機啟動中，請先對準面膜儲位條碼，再掃原物料 QR。";
+      return getCameraStartingText();
     },
   };
 })();
